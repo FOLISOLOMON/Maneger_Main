@@ -5,9 +5,10 @@
 import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Package, ShoppingCart, Receipt, Wallet, Plus,
-  TrendingUp, Coins, Boxes, ChevronRight, Lock, AlertCircle,
+  ArrowLeft, Package, ShoppingCart, Receipt, Plus,
+  TrendingUp, Boxes, Lock, AlertCircle,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import {
@@ -16,7 +17,7 @@ import {
 import {
   formatMoney, formatMoneyCompact, formatPercent, formatDate, formatRelative,
 } from '../../utils/format';
-import { Card, Badge, ProgressBar, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
+import { Card, Badge, EmptyState, LoadingState, ErrorState } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Field, Input, Select, Textarea } from '../../components/common/Form';
@@ -26,7 +27,7 @@ import { useToast } from '../../components/common/Toast';
 import { BATCH_STATUS_META, PRODUCT_CATEGORIES } from '../../constants';
 import { batchHealth, profitMargin } from '../../services/calculations';
 import { differenceInDays, parseISO } from 'date-fns';
-import type { BatchStatus } from '../../types';
+import type { BatchWithSupplier } from '../../types';
 
 type Tab = 'overview' | 'products' | 'sales' | 'expenses';
 
@@ -59,7 +60,7 @@ export function BatchDetail() {
     return batchHealth(batch, ageDays);
   }, [batch]);
 
-  const tabs: { key: Tab; label: string; icon: any }[] = [
+  const tabs: { key: Tab; label: string; icon: LucideIcon }[] = [
     { key: 'overview', label: 'Overview', icon: Package },
     { key: 'products', label: `Products (${products?.length ?? 0})`, icon: Boxes },
     { key: 'sales', label: `Sales (${sales?.length ?? 0})`, icon: ShoppingCart },
@@ -90,7 +91,7 @@ export function BatchDetail() {
               </span>
             </div>
             <p className="text-sm text-plum-100 mt-1">
-              {batch.batch_code} · {(batch as any).supplier?.supplier_name ?? 'Supplier'} · {formatDate(batch.purchase_date)}
+              {batch.batch_code} · {(batch as BatchWithSupplier).supplier?.supplier_name ?? 'Supplier'} · {formatDate(batch.purchase_date)}
             </p>
           </div>
           {health && (
@@ -325,8 +326,9 @@ export function BatchDetail() {
             await createProduct.mutateAsync({ ...payload, batch_id: id! });
             toast('Product added', 'success');
             setAddProductOpen(false);
-          } catch (e: any) {
-            toast(e.message ?? 'Failed to add product', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to add product';
+            toast(message, 'error');
           }
         }}
       />
@@ -358,8 +360,9 @@ export function BatchDetail() {
             } else {
               toast(res?.message ?? 'Failed to close batch', 'error');
             }
-          } catch (e: any) {
-            toast(e.message ?? 'Failed to close batch', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to close batch';
+            toast(message, 'error');
           }
         }}
         onCancel={() => setCloseConfirm(false)}
@@ -400,7 +403,16 @@ interface AddProductModalProps {
   onClose: () => void;
   currencySymbol: string;
   creating: boolean;
-  onCreate: (payload: any) => void;
+  onCreate: (payload: {
+    product_name: string;
+    brand: string | null;
+    category: string | null;
+    cost_price: number;
+    selling_price: number;
+    initial_stock: number;
+    reorder_level: number;
+    description: string | null;
+  }) => void;
 }
 
 function AddProductModal({ open, onClose, currencySymbol, creating, onCreate }: AddProductModalProps) {

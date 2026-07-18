@@ -4,7 +4,7 @@
 // category, amount, date.
 
 import { useMemo, useState } from 'react';
-import { Receipt, Plus, Search } from 'lucide-react';
+import { Receipt, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import { useExpenses, useBatches, useCreateExpense } from '../../hooks/queries';
@@ -149,8 +149,9 @@ export function Expenses() {
             await createExpense.mutateAsync(payload);
             toast('Expense recorded', 'success');
             setCreateOpen(false);
-          } catch (e: any) {
-            toast(e.message ?? 'Failed to record expense', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to record expense';
+            toast(message, 'error');
           }
         }}
       />
@@ -158,12 +159,22 @@ export function Expenses() {
   );
 }
 
+interface CreateExpensePayload {
+  expense_type: 'Batch' | 'Business';
+  batch_id: string | null;
+  category: string;
+  expense_name: string;
+  amount: number;
+  expense_date: string;
+  description: string | null;
+}
+
 interface CreateExpenseModalProps {
   open: boolean;
   onClose: () => void;
   currencySymbol: string;
   creating: boolean;
-  onCreate: (payload: any) => void;
+  onCreate: (payload: CreateExpensePayload) => void;
 }
 
 function CreateExpenseModal({ open, onClose, currencySymbol, creating, onCreate }: CreateExpenseModalProps) {

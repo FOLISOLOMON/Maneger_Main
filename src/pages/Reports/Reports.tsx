@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import {
   Building, Package, Truck, Box, Users, Receipt, Wallet, Coins,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import {
@@ -23,11 +24,21 @@ import {
   PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts';
 import { subDays, parseISO, format, isAfter, eachDayOfInterval } from 'date-fns';
+import type {
+  Customer,
+  ExpenseWithBatch,
+  InventoryBatch,
+  Product,
+  SaleWithRelations,
+  Supplier,
+  WalletBalance,
+  WalletTransaction,
+} from '../../types';
 
 type ReportType = 'business' | 'batch' | 'product' | 'customer' | 'supplier' | 'expense' | 'wallet' | 'financial';
 type Period = 'today' | 'week' | 'month' | 'year';
 
-const REPORTS: { key: ReportType; label: string; icon: any; color: string }[] = [
+const REPORTS: { key: ReportType; label: string; icon: LucideIcon; color: string }[] = [
   { key: 'business', label: 'Business', icon: Building, color: 'bg-plum-50 text-plum-700' },
   { key: 'financial', label: 'Financial', icon: Coins, color: 'bg-emerald-50 text-emerald-600' },
   { key: 'batch', label: 'Batch', icon: Package, color: 'bg-blue-50 text-blue-600' },
@@ -136,18 +147,18 @@ export function Reports() {
 interface ReportContentProps {
   type: ReportType;
   currencySymbol: string;
-  batches: any[];
-  products: any[];
-  sales: any[];
-  expenses: any[];
-  walletTx: any[];
-  suppliers: any[];
-  customers: any[];
+  batches: InventoryBatch[];
+  products: Product[];
+  sales: SaleWithRelations[];
+  expenses: ExpenseWithBatch[];
+  walletTx: WalletTransaction[];
+  suppliers: Supplier[];
+  customers: Customer[];
 }
 
 function ReportContent({ type, currencySymbol, batches, products, sales, expenses, walletTx, suppliers, customers }: ReportContentProps) {
   if (type === 'business') return <BusinessReport currencySymbol={currencySymbol} batches={batches} sales={sales} expenses={expenses} />;
-  if (type === 'financial') return <FinancialReport currencySymbol={currencySymbol} batches={batches} sales={sales} expenses={expenses} walletTx={walletTx} />;
+  if (type === 'financial') return <FinancialReport currencySymbol={currencySymbol} sales={sales} expenses={expenses} walletTx={walletTx} />;
   if (type === 'batch') return <BatchReport currencySymbol={currencySymbol} batches={batches} />;
   if (type === 'product') return <ProductReport currencySymbol={currencySymbol} products={products} sales={sales} />;
   if (type === 'supplier') return <SupplierReport currencySymbol={currencySymbol} batches={batches} suppliers={suppliers} />;
@@ -170,11 +181,11 @@ function KpiGrid({ items }: { items: { label: string; value: string; color?: str
   );
 }
 
-function BusinessReport({ currencySymbol, batches, sales, expenses }: any) {
-  const totalRevenue = sales.reduce((s: number, x: any) => s + x.total_sale, 0);
-  const totalProfit = sales.reduce((s: number, x: any) => s + x.profit, 0);
+function BusinessReport({ currencySymbol, batches, sales, expenses }: { currencySymbol: string; batches: InventoryBatch[]; sales: SaleWithRelations[]; expenses: ExpenseWithBatch[] }) {
+  const totalRevenue = sales.reduce((s: number, x: SaleWithRelations) => s + x.total_sale, 0);
+  const totalProfit = sales.reduce((s: number, x: SaleWithRelations) => s + x.profit, 0);
   const totalExpenses = expenseTotal(expenses);
-  const activeBatches = batches.filter((b: any) => !['Completed', 'Archived'].includes(b.status)).length;
+  const activeBatches = batches.filter((b: InventoryBatch) => !['Completed', 'Archived'].includes(b.status)).length;
 
   const trend = useMemo(() => buildTrend(sales, 14), [sales]);
 
@@ -207,12 +218,12 @@ function BusinessReport({ currencySymbol, batches, sales, expenses }: any) {
   );
 }
 
-function FinancialReport({ currencySymbol, batches, sales, expenses, walletTx }: any) {
-  const totalRevenue = sales.reduce((s: number, x: any) => s + x.total_sale, 0);
-  const totalCogs = sales.reduce((s: number, x: any) => s + x.total_cost, 0);
+function FinancialReport({ currencySymbol, sales, expenses, walletTx }: { currencySymbol: string; sales: SaleWithRelations[]; expenses: ExpenseWithBatch[]; walletTx: WalletTransaction[] }) {
+  const totalRevenue = sales.reduce((s: number, x: SaleWithRelations) => s + x.total_sale, 0);
+  const totalCogs = sales.reduce((s: number, x: SaleWithRelations) => s + x.total_cost, 0);
   const grossProfit = totalRevenue - totalCogs;
-  const batchExpenses = expenses.filter((e: any) => e.expense_type === 'Batch').reduce((s: number, e: any) => s + e.amount, 0);
-  const businessExpenses = expenses.filter((e: any) => e.expense_type === 'Business').reduce((s: number, e: any) => s + e.amount, 0);
+  const batchExpenses = expenses.filter((e: ExpenseWithBatch) => e.expense_type === 'Batch').reduce((s: number, e: ExpenseWithBatch) => s + e.amount, 0);
+  const businessExpenses = expenses.filter((e: ExpenseWithBatch) => e.expense_type === 'Business').reduce((s: number, e: ExpenseWithBatch) => s + e.amount, 0);
   const netProfit = grossProfit - batchExpenses;
   const wallets = walletBalances(walletTx);
   const cash = businessCash(wallets);
@@ -249,8 +260,8 @@ function FlowRow({ label, value, valueClass = 'text-slate-900', bold }: { label:
   );
 }
 
-function BatchReport({ currencySymbol, batches }: any) {
-  const completed = batches.filter((b: any) => b.status === 'Completed');
+function BatchReport({ currencySymbol, batches }: { currencySymbol: string; batches: InventoryBatch[] }) {
+  const completed = batches.filter((b: InventoryBatch) => b.status === 'Completed');
   const sorted = [...batches].sort((a, b) => b.net_profit - a.net_profit).slice(0, 8);
   const data = sorted.map((b) => ({ name: b.batch_code, profit: b.net_profit, revenue: b.gross_revenue }));
 
@@ -259,8 +270,8 @@ function BatchReport({ currencySymbol, batches }: any) {
       <KpiGrid items={[
         { label: 'Total batches', value: `${batches.length}` },
         { label: 'Completed', value: `${completed.length}` },
-        { label: 'Avg ROI', value: formatPercent(batches.reduce((s: number, b: any) => s + b.roi, 0) / (batches.length || 1)) },
-        { label: 'Total profit', value: formatMoneyCompact(batches.reduce((s: number, b: any) => s + b.net_profit, 0), currencySymbol), color: 'text-emerald-600' },
+        { label: 'Avg ROI', value: formatPercent(batches.reduce((s: number, b: InventoryBatch) => s + b.roi, 0) / (batches.length || 1)) },
+        { label: 'Total profit', value: formatMoneyCompact(batches.reduce((s: number, b: InventoryBatch) => s + b.net_profit, 0), currencySymbol), color: 'text-emerald-600' },
       ]} />
       {data.length > 0 && (
         <ChartCard title="Profit by batch" subtitle="Top batches by net profit">
@@ -279,7 +290,7 @@ function BatchReport({ currencySymbol, batches }: any) {
   );
 }
 
-function ProductReport({ currencySymbol, products, sales }: any) {
+function ProductReport({ currencySymbol, products, sales }: { currencySymbol: string; products: Product[]; sales: SaleWithRelations[] }) {
   const productPerf = useMemo(() => {
     const map: Record<string, { name: string; revenue: number; profit: number; qty: number }> = {};
     for (const s of sales) {
@@ -296,9 +307,9 @@ function ProductReport({ currencySymbol, products, sales }: any) {
     <div className="space-y-4">
       <KpiGrid items={[
         { label: 'Products', value: `${products.length}` },
-        { label: 'In stock', value: `${products.reduce((s: number, p: any) => s + p.current_stock, 0)}` },
-        { label: 'Sold (period)', value: `${sales.reduce((s: number, x: any) => s + x.quantity, 0)}` },
-        { label: 'Revenue', value: formatMoneyCompact(sales.reduce((s: number, x: any) => s + x.total_sale, 0), currencySymbol) },
+        { label: 'In stock', value: `${products.reduce((s: number, p: Product) => s + p.current_stock, 0)}` },
+        { label: 'Sold (period)', value: `${sales.reduce((s: number, x: SaleWithRelations) => s + x.quantity, 0)}` },
+        { label: 'Revenue', value: formatMoneyCompact(sales.reduce((s: number, x: SaleWithRelations) => s + x.total_sale, 0), currencySymbol) },
       ]} />
       {productPerf.length > 0 ? (
         <Card padding="md">
@@ -326,17 +337,17 @@ function ProductReport({ currencySymbol, products, sales }: any) {
   );
 }
 
-function SupplierReport({ currencySymbol, batches, suppliers }: any) {
+function SupplierReport({ currencySymbol, batches, suppliers }: { currencySymbol: string; batches: InventoryBatch[]; suppliers: Supplier[] }) {
   const supplierPerf = useMemo(() => {
-    return suppliers.map((s: any) => {
-      const sb = batches.filter((b: any) => b.supplier_id === s.id);
+    return suppliers.map((s: Supplier) => {
+      const sb = batches.filter((b: InventoryBatch) => b.supplier_id === s.id);
       return {
         name: s.supplier_name,
         batches: sb.length,
-        profit: sb.reduce((sum: number, b: any) => sum + b.net_profit, 0),
-        cost: sb.reduce((sum: number, b: any) => sum + b.total_batch_cost, 0),
+        profit: sb.reduce((sum: number, b: InventoryBatch) => sum + b.net_profit, 0),
+        cost: sb.reduce((sum: number, b: InventoryBatch) => sum + b.total_batch_cost, 0),
       };
-    }).filter((x: any) => x.batches > 0).sort((a: any, b: any) => b.profit - a.profit);
+    }).filter((x) => x.batches > 0).sort((a, b) => b.profit - a.profit);
   }, [suppliers, batches]);
 
   return (
@@ -344,14 +355,14 @@ function SupplierReport({ currencySymbol, batches, suppliers }: any) {
       <KpiGrid items={[
         { label: 'Suppliers', value: `${suppliers.length}` },
         { label: 'With batches', value: `${supplierPerf.length}` },
-        { label: 'Total purchases', value: formatMoneyCompact(supplierPerf.reduce((s: number, x: any) => s + x.cost, 0), currencySymbol) },
-        { label: 'Total profit', value: formatMoneyCompact(supplierPerf.reduce((s: number, x: any) => s + x.profit, 0), currencySymbol), color: 'text-emerald-600' },
+        { label: 'Total purchases', value: formatMoneyCompact(supplierPerf.reduce((s: number, x) => s + x.cost, 0), currencySymbol) },
+        { label: 'Total profit', value: formatMoneyCompact(supplierPerf.reduce((s: number, x) => s + x.profit, 0), currencySymbol), color: 'text-emerald-600' },
       ]} />
       {supplierPerf.length > 0 ? (
         <Card padding="md">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Supplier performance</p>
           <div className="space-y-2">
-            {supplierPerf.map((s: any, i: number) => (
+            {supplierPerf.map((s, i: number) => (
               <div key={i} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{s.name}</p>
@@ -369,7 +380,7 @@ function SupplierReport({ currencySymbol, batches, suppliers }: any) {
   );
 }
 
-function CustomerReport({ currencySymbol, customers, sales }: any) {
+function CustomerReport({ currencySymbol, customers, sales }: { currencySymbol: string; customers: Customer[]; sales: SaleWithRelations[] }) {
   const customerPerf = useMemo(() => {
     const map: Record<string, { name: string; spent: number; orders: number }> = {};
     for (const s of sales) {
@@ -386,8 +397,8 @@ function CustomerReport({ currencySymbol, customers, sales }: any) {
       <KpiGrid items={[
         { label: 'Customers', value: `${customers.length}` },
         { label: 'Active buyers', value: `${customerPerf.length}` },
-        { label: 'Avg order', value: formatMoneyCompact(sales.reduce((s: number, x: any) => s + x.total_sale, 0) / (sales.length || 1), currencySymbol) },
-        { label: 'Revenue', value: formatMoneyCompact(sales.reduce((s: number, x: any) => s + x.total_sale, 0), currencySymbol) },
+        { label: 'Avg order', value: formatMoneyCompact(sales.reduce((s: number, x: SaleWithRelations) => s + x.total_sale, 0) / (sales.length || 1), currencySymbol) },
+        { label: 'Revenue', value: formatMoneyCompact(sales.reduce((s: number, x: SaleWithRelations) => s + x.total_sale, 0), currencySymbol) },
       ]} />
       {customerPerf.length > 0 ? (
         <Card padding="md">
@@ -412,7 +423,7 @@ function CustomerReport({ currencySymbol, customers, sales }: any) {
   );
 }
 
-function ExpenseReport({ currencySymbol, expenses }: any) {
+function ExpenseReport({ currencySymbol, expenses }: { currencySymbol: string; expenses: ExpenseWithBatch[] }) {
   const total = expenseTotal(expenses);
   const byCat = expensesByCategory(expenses);
   const PIE_COLORS = [CHART_COLORS.plum, CHART_COLORS.gold, CHART_COLORS.emerald, CHART_COLORS.blue, CHART_COLORS.red, CHART_COLORS.slate];
@@ -421,8 +432,8 @@ function ExpenseReport({ currencySymbol, expenses }: any) {
     <div className="space-y-4">
       <KpiGrid items={[
         { label: 'Total expenses', value: formatMoneyCompact(total, currencySymbol), color: 'text-red-600' },
-        { label: 'Batch expenses', value: formatMoneyCompact(expenses.filter((e: any) => e.expense_type === 'Batch').reduce((s: number, e: any) => s + e.amount, 0), currencySymbol) },
-        { label: 'Business expenses', value: formatMoneyCompact(expenses.filter((e: any) => e.expense_type === 'Business').reduce((s: number, e: any) => s + e.amount, 0), currencySymbol) },
+        { label: 'Batch expenses', value: formatMoneyCompact(expenses.filter((e: ExpenseWithBatch) => e.expense_type === 'Batch').reduce((s: number, e: ExpenseWithBatch) => s + e.amount, 0), currencySymbol) },
+        { label: 'Business expenses', value: formatMoneyCompact(expenses.filter((e: ExpenseWithBatch) => e.expense_type === 'Business').reduce((s: number, e: ExpenseWithBatch) => s + e.amount, 0), currencySymbol) },
         { label: 'Categories', value: `${byCat.length}` },
       ]} />
       {byCat.length > 0 && (
@@ -452,11 +463,11 @@ function ExpenseReport({ currencySymbol, expenses }: any) {
   );
 }
 
-function WalletReport({ currencySymbol, walletTx }: any) {
+function WalletReport({ currencySymbol, walletTx }: { currencySymbol: string; walletTx: WalletTransaction[] }) {
   const wallets = walletBalances(walletTx);
   return (
     <div className="space-y-4">
-      <KpiGrid items={wallets.map((w: any) => ({
+      <KpiGrid items={wallets.map((w: WalletBalance) => ({
         label: w.wallet,
         value: formatMoneyCompact(w.balance, currencySymbol),
         color: w.balance >= 0 ? 'text-slate-900' : 'text-red-600',
@@ -464,7 +475,7 @@ function WalletReport({ currencySymbol, walletTx }: any) {
       <Card padding="md">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Wallet flow</p>
         <div className="space-y-3">
-          {wallets.map((w: any) => (
+          {wallets.map((w: WalletBalance) => (
             <div key={w.wallet}>
               <div className="flex justify-between text-sm mb-1">
                 <span className="font-semibold text-slate-700">{w.wallet}</span>
@@ -482,7 +493,7 @@ function WalletReport({ currencySymbol, walletTx }: any) {
   );
 }
 
-function buildTrend(sales: any[], days: number) {
+function buildTrend(sales: SaleWithRelations[], days: number) {
   const end = new Date();
   const start = subDays(end, days - 1);
   return eachDayOfInterval({ start, end }).map((day) => {

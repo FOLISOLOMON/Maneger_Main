@@ -36,8 +36,8 @@ export function StatCard({ icon: Icon, label, value, hint, trend, accent = 'text
           </span>
         )}
       </div>
-      <p className="text-2xl font-display font-extrabold text-slate-900 mt-3 tracking-tight tabular-nums">{value}</p>
-      <p className="text-sm font-medium text-slate-500 mt-0.5">{label}</p>
+      <p className="text-xl md:text-2xl font-display font-extrabold text-slate-900 mt-3 tracking-tight tabular-nums">{value}</p>
+      <p className="text-[13px] md:text-sm font-medium text-slate-500 mt-0.5">{label}</p>
       {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
     </Card>
   );

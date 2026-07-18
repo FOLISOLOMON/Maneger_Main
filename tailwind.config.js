@@ -43,6 +43,7 @@ export default {
       },
       animation: {
         'slide-up': 'slideUp 0.25s ease-out',
+        'slide-in': 'slideIn 0.25s ease-out',
         'fade-in': 'fadeIn 0.2s ease-out',
         'scale-in': 'scaleIn 0.15s ease-out',
       },

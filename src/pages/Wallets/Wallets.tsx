@@ -140,8 +140,9 @@ export function Wallets() {
             await createTx.mutateAsync(payload);
             toast('Withdrawal recorded', 'success');
             setWithdrawOpen(false);
-          } catch (e: any) {
-            toast(e.message ?? 'Failed', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed';
+            toast(message, 'error');
           }
         }}
       />
@@ -171,8 +172,9 @@ export function Wallets() {
             }
             toast('Transfer completed', 'success');
             setTransferOpen(false);
-          } catch (e: any) {
-            toast(e.message ?? 'Failed', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed';
+            toast(message, 'error');
           }
         }}
       />
@@ -191,7 +193,13 @@ interface WalletActionModalProps {
   balance: number;
   loading: boolean;
   showTargetWallet?: boolean;
-  onSubmit: (payload: any) => void;
+  onSubmit: (payload: {
+    wallet: WalletName;
+    transaction_type: 'Allocation' | 'Expense' | 'Transfer' | 'Withdrawal' | 'Adjustment';
+    amount: number;
+    reason: string;
+    target_wallet?: WalletName;
+  }) => void;
 }
 
 function WalletActionModal({ open, onClose, title, subtitle, actionType, wallet, currencySymbol, balance, loading, showTargetWallet, onSubmit }: WalletActionModalProps) {

@@ -18,6 +18,7 @@ import { useToast } from '../../components/common/Toast';
 import { BATCH_STATUS_META, ACTIVE_BATCH_STATUSES } from '../../constants';
 import { todayInputDate } from '../../utils/format';
 import { totalBatchCost } from '../../services/calculations';
+import type { BatchWithSupplier } from '../../types';
 
 
 // (BatchStatus type removed — not used in this file)
@@ -54,7 +55,7 @@ export function InventoryList() {
     return byTab.filter((b) =>
       b.batch_name.toLowerCase().includes(q) ||
       b.batch_code.toLowerCase().includes(q) ||
-      (b as any).supplier?.supplier_name?.toLowerCase().includes(q),
+      (b as BatchWithSupplier).supplier?.supplier_name?.toLowerCase().includes(q),
     );
   }, [batches, tab, search]);
 
@@ -111,7 +112,7 @@ export function InventoryList() {
                         <Badge color={meta.color} dot={meta.dot}>{meta.label}</Badge>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {b.batch_code} · {(b as any).supplier?.supplier_name ?? 'Unknown supplier'} · {formatDate(b.purchase_date)}
+                        {b.batch_code} · {(b as BatchWithSupplier).supplier?.supplier_name ?? 'Unknown supplier'} · {formatDate(b.purchase_date)}
                       </p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 mt-1" />
@@ -146,8 +147,9 @@ export function InventoryList() {
             await createBatch.mutateAsync(payload);
             toast('Batch created successfully', 'success');
             setCreateOpen(false);
-          } catch (e: any) {
-            toast(e.message ?? 'Failed to create batch', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to create batch';
+            toast(message, 'error');
           }
         }}
       />
@@ -170,7 +172,19 @@ interface CreateBatchModalProps {
   suppliers: { id: string; supplier_name: string }[];
   currencySymbol: string;
   creating: boolean;
-  onCreate: (payload: any) => void;
+  onCreate: (payload: {
+    supplier_id: string;
+    batch_name: string;
+    purchase_date: string;
+    expected_arrival: string | null;
+    purchase_cost: number;
+    transport_cost: number;
+    loading_cost: number;
+    import_duty: number;
+    insurance: number;
+    other_costs: number;
+    notes: string | null;
+  }) => void;
 }
 
 export function CreateBatchModal({ open, onClose, suppliers, currencySymbol, creating, onCreate }: CreateBatchModalProps) {

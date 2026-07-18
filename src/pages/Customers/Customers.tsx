@@ -3,10 +3,10 @@
 // per spec 5.18). Detail modal shows purchase history + lifetime value.
 
 import { useMemo, useState } from 'react';
-import { Users, Plus, Search, Phone, MapPin } from 'lucide-react';
+import { Users, Plus, Phone, MapPin } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useCustomers, useSales, useCreateCustomer } from '../../hooks/queries';
-import { customerStats, customerLifetimeValue } from '../../services/calculations';
+import { customerStats } from '../../services/calculations';
 import { formatMoney, formatMoneyCompact, initials, formatRelative } from '../../utils/format';
 import { Card, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
 import { SearchBar } from '../../components/common/StatCard';
@@ -139,8 +139,9 @@ export function Customers() {
             await createCustomer.mutateAsync(payload);
             toast('Customer added', 'success');
             setCreateOpen(false);
-          } catch (e: any) {
-            toast(e.message ?? 'Failed to add customer', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to add customer';
+            toast(message, 'error');
           }
         }}
       />
@@ -148,11 +149,19 @@ export function Customers() {
   );
 }
 
+interface CreateCustomerPayload {
+  customer_name: string;
+  phone: string | null;
+  location: string | null;
+  gender: 'Male' | 'Female' | 'Other' | null;
+  notes: string | null;
+}
+
 interface CreateCustomerModalProps {
   open: boolean;
   onClose: () => void;
   creating: boolean;
-  onCreate: (payload: any) => void;
+  onCreate: (payload: CreateCustomerPayload) => void;
 }
 
 function CreateCustomerModal({ open, onClose, creating, onCreate }: CreateCustomerModalProps) {
@@ -171,7 +180,7 @@ function CreateCustomerModal({ open, onClose, creating, onCreate }: CreateCustom
       customer_name: name.trim(),
       phone: phone.trim() || null,
       location: location.trim() || null,
-      gender: (gender || null) as any,
+      gender: (gender || null) as 'Male' | 'Female' | 'Other' | null,
       notes: notes.trim() || null,
     });
     reset();

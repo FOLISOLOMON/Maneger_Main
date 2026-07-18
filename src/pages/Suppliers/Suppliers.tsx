@@ -168,8 +168,9 @@ export function Suppliers() {
             await createSupplier.mutateAsync(payload);
             toast('Supplier added', 'success');
             setCreateOpen(false);
-          } catch (e: any) {
-            toast(e.message ?? 'Failed to add supplier', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to add supplier';
+            toast(message, 'error');
           }
         }}
       />
@@ -181,7 +182,13 @@ interface CreateSupplierModalProps {
   open: boolean;
   onClose: () => void;
   creating: boolean;
-  onCreate: (payload: any) => void;
+  onCreate: (payload: {
+    supplier_name: string;
+    phone: string | null;
+    location: string | null;
+    contact_person: string | null;
+    notes: string | null;
+  }) => void;
 }
 
 function CreateSupplierModal({ open, onClose, creating, onCreate }: CreateSupplierModalProps) {

@@ -82,8 +82,9 @@ export function Settings() {
         },
       });
       toast('Settings saved', 'success');
-    } catch (e: any) {
-      toast(e.message ?? 'Failed to save settings', 'error');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to save settings';
+      toast(message, 'error');
     }
   };
 

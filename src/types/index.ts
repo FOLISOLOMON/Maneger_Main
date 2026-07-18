@@ -205,6 +205,14 @@ export interface ActivityLog {
   created_at: string;
 }
 
+// Loosely-typed record returned by the Sheets backend. Used as a safer
+// replacement for `any` in the service layer and report/views where the shape
+// is dynamic JSON. Prefer the concrete domain interfaces above when known.
+export type ApiValue = string | number | boolean | null | ApiRecord | ApiValue[];
+export interface ApiRecord {
+  [key: string]: ApiValue;
+}
+
 // Joined / computed shapes used by the UI
 
 export interface BatchWithSupplier extends InventoryBatch {

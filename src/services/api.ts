@@ -13,6 +13,7 @@ import {
 } from '../lib/sheets';
 import { totalBatchCost } from './calculations';
 import type {
+  ActivityLog,
   Customer,
   Expense,
   ExpenseType,
@@ -25,14 +26,15 @@ import type {
   Supplier,
   WalletName,
   WalletTransaction,
+  ApiRecord,
 } from '../types';
 
 // Defensive normalization: the Sheets backend can return a single object, null,
 // or an array depending on deployment state. Coerce list responses to arrays so
 // the UI never crashes on a malformed/empty response.
-function asArray<T>(value: any): T[] {
+function asArray<T>(value: unknown): T[] {
   if (Array.isArray(value)) return value as T[];
-  if (value && typeof value === 'object') return [value as T];
+  if (value && typeof value === 'object' && !Array.isArray(value)) return [value as T];
   return [];
 }
 
@@ -191,7 +193,7 @@ export async function recordSale(input: {
   payment_method: string;
   notes?: string | null;
   sale_date?: string;
-}): Promise<{ success: boolean; message: string; data?: any }> {
+}): Promise<{ success: boolean; message: string; data?: ApiRecord }> {
   return (await sheetsAction('recordSale', {
     payload: {
       ...input,
@@ -199,7 +201,7 @@ export async function recordSale(input: {
       discount_type: input.discount_type ?? 'Amount',
       sale_date: input.sale_date ?? new Date().toISOString(),
     },
-  })) as { success: boolean; message: string; data?: any };
+  })) as { success: boolean; message: string; data?: ApiRecord };
 }
 
 export async function voidSale(saleId: string): Promise<{ success: boolean; message: string }> {
@@ -263,8 +265,8 @@ export async function createWalletTransaction(input: {
   return (await sheetsCreate('WalletTransactions', input)) as WalletTransaction;
 }
 
-export async function closeBatch(batchId: string): Promise<{ success: boolean; message: string; data?: any }> {
-  return (await sheetsAction('closeBatch', { batchId })) as { success: boolean; message: string; data?: any };
+export async function closeBatch(batchId: string): Promise<{ success: boolean; message: string; data?: ApiRecord }> {
+  return (await sheetsAction('closeBatch', { batchId })) as { success: boolean; message: string; data?: ApiRecord };
 }
 
 // ---------- Customers ----------
@@ -327,8 +329,8 @@ export async function logActivity(action: string, module: string, referenceId?: 
   });
 }
 
-export async function fetchActivityLogs(limit: number = 50): Promise<any[]> {
-  const logs = asArray<any>(await sheetsList('ActivityLogs'));
+export async function fetchActivityLogs(limit: number = 50): Promise<ActivityLog[]> {
+  const logs = asArray<ActivityLog>(await sheetsList('ActivityLogs'));
   return logs.slice(0, limit);
 }
 
@@ -400,6 +402,6 @@ export async function fetchNotificationsSnapshot(): Promise<NotificationsSnapsho
 
 // Fire several actions in a single round-trip. Returns an array of each
 // action's unwrapped data (or a { success:false, message } error object).
-export async function sheetsBatch(actions: { action: string; params?: Record<string, any> }[]): Promise<any[]> {
-  return (await sheetsAction('batch', { actions })) as any[];
+export async function sheetsBatch(actions: { action: string; params?: ApiRecord }[]): Promise<unknown[]> {
+  return (await sheetsAction('batch', { actions })) as unknown[];
 }

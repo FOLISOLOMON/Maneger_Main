@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { Bell, BellOff, Check, CheckCheck } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNotificationsSnapshot, useMarkNotificationRead, useMarkAllNotificationsRead } from '../../hooks/queries';
+import type { Notification } from '../../types';
 import { formatRelative } from '../../utils/format';
 import { Card, EmptyState, LoadingState, ErrorState, SectionHeader, Badge } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -49,7 +50,7 @@ export function Notifications() {
     { label: 'Earlier', items: grouped.earlier },
   ].filter((g) => g.items.length > 0);
 
-  const renderItem = (n: any) => {
+  const renderItem = (n: Notification) => {
     const meta = PRIORITY_META[n.priority] ?? PRIORITY_META.Medium;
     return (
       <Card

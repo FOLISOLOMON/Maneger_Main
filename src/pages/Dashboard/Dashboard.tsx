@@ -9,13 +9,15 @@ import {
   TrendingUp, Wallet, PiggyBank, Package, AlertTriangle, ShoppingBag,
   Receipt, Plus, PackagePlus, ShoppingCart, ArrowRight, Activity,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useDashboardSnapshot } from '../../hooks/queries';
+import type { SaleWithRelations } from '../../types';
 import {
   walletBalances, businessCash, filterSalesToday, filterExpensesToday,
   countLowStock, saleTotalSale,
 } from '../../services/calculations';
-import { formatMoney, formatMoneyCompact, formatRelative, formatPercent } from '../../utils/format';
+import { formatMoney, formatMoneyCompact, formatRelative } from '../../utils/format';
 import { Card, SectionHeader, EmptyState, LoadingState, ProgressBar, Badge } from '../../components/common/Card';
 import { StatCard } from '../../components/common/StatCard';
 import { ChartCard, CHART_COLORS } from '../../components/charts/ChartCard';
@@ -299,7 +301,7 @@ export function Dashboard() {
   );
 }
 
-function QuickAction({ icon: Icon, label, to, color }: { icon: any; label: string; to: string; color: string }) {
+function QuickAction({ icon: Icon, label, to, color }: { icon: LucideIcon; label: string; to: string; color: string }) {
   return (
     <Link to={to} className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-card-hover transition-all active:scale-95">
       <div className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center`}>
@@ -310,7 +312,7 @@ function QuickAction({ icon: Icon, label, to, color }: { icon: any; label: strin
   );
 }
 
-function buildSalesChart(sales: any[], days: number) {
+function buildSalesChart(sales: SaleWithRelations[], days: number) {
   const end = new Date();
   const start = subDays(end, days - 1);
   const range = eachDayOfInterval({ start, end });

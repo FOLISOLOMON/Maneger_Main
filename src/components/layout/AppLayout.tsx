@@ -8,7 +8,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3, Menu, X,
-  Bell, Plus, type LucideIcon,
+  Bell, Plus, Users, Truck, Receipt, Wallet, Settings, type LucideIcon,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useNotifications } from '../../hooks/queries';
@@ -17,7 +17,7 @@ import { useState } from 'react';
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, BarChart3, Menu, X,
-  Bell, Plus,
+  Bell, Plus, Users, Truck, Receipt, Wallet, Settings,
 };
 
 interface FabConfig {
@@ -133,7 +133,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-5 h-16">
+        <div className="grid grid-cols-4 h-16">
           {NAV_ITEMS.map((item) => {
             const Icon = ICONS[item.icon] ?? LayoutDashboard;
             return (
@@ -153,40 +153,44 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </NavLink>
             );
           })}
-          <button
-            onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-slate-400 touch-target"
-          >
-            <Menu className="w-5 h-5" />
-            More
-          </button>
         </div>
       </nav>
 
-      {/* More sheet */}
+      {/* More drawer (mobile) — slides in from the right */}
       {moreOpen && (
         <div className="md:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in" onClick={() => setMoreOpen(false)} />
-          <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl p-4 pb-8 animate-slide-up">
-            <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-4" />
-            <h3 className="font-display font-bold text-slate-900 px-2 mb-3">More</h3>
-            <div className="grid grid-cols-3 gap-2">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="absolute right-0 inset-y-0 w-[80%] max-w-xs bg-white shadow-xl flex flex-col animate-slide-in">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-slate-200">
+              <h3 className="font-display font-bold text-slate-900">More</h3>
+              <button
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="flex-1 overflow-y-auto p-2 space-y-1">
               {MORE_ITEMS.map((item) => {
                 const Icon = ICONS[item.icon] ?? LayoutDashboard;
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
-                    className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition-colors"
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-100 transition-colors"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-plum-50 text-plum-700 flex items-center justify-center">
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-semibold text-slate-700 text-center leading-tight">{item.label}</span>
+                    <span className="w-9 h-9 rounded-xl bg-plum-50 text-plum-700 flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-5 h-5" />
+                    </span>
+                    {item.label}
                   </Link>
                 );
               })}
-            </div>
+            </nav>
           </div>
         </div>
       )}
@@ -228,6 +232,13 @@ function Header({ onMore }: { onMore: () => void }) {
               </span>
             )}
           </Link>
+          <button
+            onClick={onMore}
+            aria-label="More"
+            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors touch-target"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
         </div>
       </div>
     </header>

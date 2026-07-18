@@ -20,6 +20,7 @@ import { Button } from '../../components/common/Button';
 import { Field, Input, Select, Textarea } from '../../components/common/Form';
 import { useFabRegistration } from '../../components/layout/AppLayout';
 import { useToast } from '../../components/common/Toast';
+import type { Customer, InventoryBatch, Product } from '../../types';
 import { PAYMENT_METHODS } from '../../constants';
 import { saleTotalSale, saleProfit } from '../../services/calculations';
 import { ShoppingCart as CartIcon, TrendingUp } from 'lucide-react';
@@ -124,13 +125,14 @@ export function Sales() {
           try {
             const res = await recordSale.mutateAsync(payload);
             if (res?.success) {
-              toast(`Sale recorded: ${formatMoney(res.data?.total_sale ?? 0, currencySymbol)}`, 'success');
+              toast(`Sale recorded: ${formatMoney(Number(res.data?.total_sale ?? 0), currencySymbol)}`, 'success');
               setRecordOpen(false);
             } else {
               toast(res?.message ?? 'Failed to record sale', 'error');
             }
-          } catch (e: any) {
-            toast(e.message ?? 'Failed to record sale', 'error');
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to record sale';
+            toast(message, 'error');
           }
         }}
       />
@@ -153,10 +155,19 @@ interface RecordSaleModalProps {
   onClose: () => void;
   currencySymbol: string;
   recording: boolean;
-  onRecord: (payload: any) => void;
-  batches: any[];
-  products: any[];
-  customers: any[];
+  onRecord: (payload: {
+    product_id: string;
+    customer_id: string | null;
+    quantity: number;
+    unit_price: number;
+    discount: number;
+    discount_type: 'Amount' | 'Percent';
+    payment_method: string;
+    notes: string | null;
+  }) => void;
+  batches: InventoryBatch[];
+  products: Product[];
+  customers: Customer[];
 }
 
 function RecordSaleModal({ open, onClose, currencySymbol, recording, onRecord, batches, products, customers }: RecordSaleModalProps) {

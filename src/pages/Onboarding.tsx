@@ -83,8 +83,9 @@ export function Onboarding() {
       });
       setCreatedSupplierId(supplier.id);
       setStep(2);
-    } catch (e: any) {
-      toast(e.message ?? 'Failed to create supplier', 'error');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to create supplier';
+      toast(message, 'error');
     }
   };
 
@@ -131,8 +132,9 @@ export function Onboarding() {
 
       setStep(3);
       setTimeout(() => navigate('/'), 1500);
-    } catch (e: any) {
-      toast(e.message ?? 'Failed to complete setup', 'error');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to complete setup';
+      toast(message, 'error');
     }
   };
 

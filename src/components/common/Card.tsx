@@ -43,7 +43,7 @@ export function SectionHeader({ title, subtitle, action }: { title: string; subt
   return (
     <div className="flex items-start justify-between gap-3 mb-3">
       <div className="min-w-0">
-        <h2 className="text-lg font-display font-bold text-slate-900 truncate">{title}</h2>
+        <h2 className="text-base md:text-lg font-display font-bold text-slate-900 truncate">{title}</h2>
         {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
