@@ -10,7 +10,7 @@ import {
   Receipt, Plus, PackagePlus, ShoppingCart, ArrowRight, Activity,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { useBatches, useProducts, useSales, useExpenses, useWalletTransactions } from '../../hooks/queries';
+import { useDashboardSnapshot } from '../../hooks/queries';
 import {
   walletBalances, businessCash, filterSalesToday, filterExpensesToday,
   countLowStock, saleTotalSale,
@@ -29,12 +29,14 @@ import {
 import { format, parseISO, eachDayOfInterval, subDays, isSameDay } from 'date-fns';
 
 export function Dashboard() {
-  const { settings, currencySymbol } = useApp();
-  const { data: batches, isLoading: batchesLoading } = useBatches();
-  const { data: products } = useProducts();
-  const { data: sales } = useSales();
-  const { data: expenses } = useExpenses();
-  const { data: walletTx } = useWalletTransactions();
+  const { currencySymbol } = useApp();
+  const { data: snapshot, isLoading: batchesLoading } = useDashboardSnapshot();
+  const settings = snapshot?.settings ?? undefined;
+  const batches = snapshot?.batches;
+  const products = snapshot?.products;
+  const sales = snapshot?.sales;
+  const expenses = snapshot?.expenses;
+  const walletTx = snapshot?.walletTx;
   const [quickOpen, setQuickOpen] = useState(false);
 
   useFabRegistration({

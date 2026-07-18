@@ -1,13 +1,17 @@
 // Veloura Manager V2 — API service layer
 // Spec section 4.2: "No page should communicate directly with [storage]."
-// This module is the only place that imports the supabase client and builds
-// queries. Pages call these functions through React Query hooks.
+// This module is the only place that imports the Sheets client and builds
+// requests. Pages call these functions through React Query hooks. All business
+// IDs are generated server-side by code.gs.
 
-import { supabase } from '../lib/supabase';
-import { generateBusinessIdRpc } from './id';
 import {
-  totalBatchCost,
-} from './calculations';
+  sheetsList,
+  sheetsGet,
+  sheetsCreate,
+  sheetsUpdate,
+  sheetsAction,
+} from '../lib/sheets';
+import { totalBatchCost } from './calculations';
 import type {
   Customer,
   Expense,
@@ -23,58 +27,37 @@ import type {
   WalletTransaction,
 } from '../types';
 
+// Defensive normalization: the Sheets backend can return a single object, null,
+// or an array depending on deployment state. Coerce list responses to arrays so
+// the UI never crashes on a malformed/empty response.
+function asArray<T>(value: any): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (value && typeof value === 'object') return [value as T];
+  return [];
+}
+
 // ---------- Settings ----------
 
 export async function fetchSettings(): Promise<Settings | null> {
-  const { data, error } = await supabase
-    .from('settings')
-    .select('*')
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data as Settings | null;
+  return (await sheetsAction('listSettings')) as Settings | null;
 }
 
 export async function createSettings(input: Omit<Settings, 'id' | 'created_at' | 'updated_at'>): Promise<Settings> {
-  const { data, error } = await supabase
-    .from('settings')
-    .insert(input)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Settings;
+  return (await sheetsCreate('Settings', input)) as Settings;
 }
 
 export async function updateSettings(id: string, patch: Partial<Settings>): Promise<Settings> {
-  const { data, error } = await supabase
-    .from('settings')
-    .update(patch)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Settings;
+  return (await sheetsUpdate('Settings', id, patch)) as Settings;
 }
 
 // ---------- Suppliers ----------
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
-  const { data, error } = await supabase
-    .from('suppliers')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Supplier[];
+  return asArray<Supplier>(await sheetsList('Suppliers'));
 }
 
 export async function fetchSupplier(id: string): Promise<Supplier | null> {
-  const { data, error } = await supabase
-    .from('suppliers')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-  if (error) throw error;
-  return data as Supplier | null;
+  return (await sheetsGet('Suppliers', id)) as Supplier | null;
 }
 
 export async function createSupplier(input: {
@@ -85,66 +68,36 @@ export async function createSupplier(input: {
   contact_person?: string | null;
   notes?: string | null;
 }): Promise<Supplier> {
-  const supplier_code = await generateBusinessIdRpc('SUP');
-  const { data, error } = await supabase
-    .from('suppliers')
-    .insert({ ...input, supplier_code })
-    .select()
-    .single();
-  if (error) throw error;
+  const supplier = (await sheetsCreate('Suppliers', {
+    ...input,
+    status: 'Active',
+  })) as Supplier;
 
-  await logActivity('Supplier Created', 'Suppliers', (data as Supplier).id, `Created supplier ${(data as Supplier).supplier_name}`);
-  return data as Supplier;
+  await logActivity('Supplier Created', 'Suppliers', supplier.id, `Created supplier ${supplier.supplier_name}`);
+  return supplier;
 }
 
 export async function updateSupplier(id: string, patch: Partial<Supplier>): Promise<Supplier> {
-  const { data, error } = await supabase
-    .from('suppliers')
-    .update(patch)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Supplier;
+  return (await sheetsUpdate('Suppliers', id, patch)) as Supplier;
 }
 
 export async function archiveSupplier(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('suppliers')
-    .update({ status: 'Archived' })
-    .eq('id', id);
-  if (error) throw error;
+  await sheetsUpdate('Suppliers', id, { status: 'Archived' });
 }
 
 // ---------- Batches ----------
 
 export async function fetchBatches(): Promise<InventoryBatch[]> {
-  const { data, error } = await supabase
-    .from('inventory_batches')
-    .select('*, supplier:suppliers(id, supplier_name, supplier_code)')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as InventoryBatch[];
+  return asArray<InventoryBatch>(await sheetsAction('listBatches'));
 }
 
 export async function fetchBatch(id: string): Promise<InventoryBatch | null> {
-  const { data, error } = await supabase
-    .from('inventory_batches')
-    .select('*, supplier:suppliers(id, supplier_name, supplier_code)')
-    .eq('id', id)
-    .maybeSingle();
-  if (error) throw error;
-  return data as InventoryBatch | null;
+  return (await sheetsAction('getBatch', { id })) as InventoryBatch | null;
 }
 
 export async function fetchBatchesBySupplier(supplierId: string): Promise<InventoryBatch[]> {
-  const { data, error } = await supabase
-    .from('inventory_batches')
-    .select('*')
-    .eq('supplier_id', supplierId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as InventoryBatch[];
+  const batches = asArray<InventoryBatch>(await sheetsList('InventoryBatches'));
+  return batches.filter((b) => String(b.supplier_id) === String(supplierId));
 }
 
 export async function createBatch(input: {
@@ -160,64 +113,41 @@ export async function createBatch(input: {
   other_costs: number;
   notes?: string | null;
 }): Promise<InventoryBatch> {
-  const batch_code = await generateBusinessIdRpc('BAT');
   const total = totalBatchCost(input);
   const status = total > 0 ? 'Purchased' : 'Draft';
 
-  const { data, error } = await supabase
-    .from('inventory_batches')
-    .insert({
-      ...input,
-      batch_code,
-      total_batch_cost: total,
-      status,
-    })
-    .select()
-    .single();
-  if (error) throw error;
+  const batch = (await sheetsCreate('InventoryBatches', {
+    ...input,
+    total_batch_cost: total,
+    status,
+    completion_percentage: 0,
+    remaining_stock: 0,
+    gross_revenue: 0,
+    gross_profit: 0,
+    net_profit: 0,
+    roi: 0,
+  })) as InventoryBatch;
 
-  await logActivity('Batch Created', 'Inventory', (data as InventoryBatch).id, `Created batch ${(data as InventoryBatch).batch_code}`);
-  return data as InventoryBatch;
+  await logActivity('Batch Created', 'Inventory', batch.id, `Created batch ${batch.batch_code}`);
+  return batch;
 }
 
 export async function updateBatch(id: string, patch: Partial<InventoryBatch>): Promise<InventoryBatch> {
-  const { data, error } = await supabase
-    .from('inventory_batches')
-    .update(patch)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as InventoryBatch;
+  return (await sheetsUpdate('InventoryBatches', id, patch)) as InventoryBatch;
 }
 
 export async function archiveBatch(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('inventory_batches')
-    .update({ status: 'Archived' })
-    .eq('id', id);
-  if (error) throw error;
+  await sheetsUpdate('InventoryBatches', id, { status: 'Archived' });
 }
 
 // ---------- Products ----------
 
 export async function fetchProducts(): Promise<Product[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*, batch:inventory_batches(id, batch_code, batch_name)')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Product[];
+  return asArray<Product>(await sheetsAction('listProducts'));
 }
 
 export async function fetchProductsByBatch(batchId: string): Promise<Product[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('batch_id', batchId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Product[];
+  return asArray<Product>(await sheetsAction('listProductsByBatch', { batchId }));
 }
 
 export async function createProduct(input: {
@@ -232,38 +162,24 @@ export async function createProduct(input: {
   description?: string | null;
   image_url?: string | null;
 }): Promise<Product> {
-  const product_code = await generateBusinessIdRpc('PRD');
-  const { data, error } = await supabase
-    .from('products')
-    .insert({
-      ...input,
-      product_code,
-      current_stock: input.initial_stock,
-      reorder_level: input.reorder_level ?? 0,
-    })
-    .select()
-    .single();
-  if (error) throw error;
+  const product = (await sheetsCreate('Products', {
+    ...input,
+    current_stock: input.initial_stock,
+    reorder_level: input.reorder_level ?? 0,
+    status: 'Active',
+  })) as Product;
 
-  // recompute the parent batch via RPC
-  await supabase.rpc('recompute_batch', { p_batch_id: input.batch_id });
+  await sheetsAction('recomputeBatch', { batchId: input.batch_id });
 
-  await logActivity('Product Added', 'Inventory', (data as Product).id, `Added product ${(data as Product).product_name}`);
-  return data as Product;
+  await logActivity('Product Added', 'Inventory', product.id, `Added product ${product.product_name}`);
+  return product;
 }
 
 export async function updateProduct(id: string, patch: Partial<Product>): Promise<Product> {
-  const { data, error } = await supabase
-    .from('products')
-    .update(patch)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Product;
+  return (await sheetsUpdate('Products', id, patch)) as Product;
 }
 
-// ---------- Sales (uses RPC for atomicity) ----------
+// ---------- Sales (uses server-side recordSale) ----------
 
 export async function recordSale(input: {
   product_id: string;
@@ -276,77 +192,41 @@ export async function recordSale(input: {
   notes?: string | null;
   sale_date?: string;
 }): Promise<{ success: boolean; message: string; data?: any }> {
-  const { data, error } = await supabase.rpc('record_sale', {
-    p_product_id: input.product_id,
-    p_customer_id: input.customer_id ?? null,
-    p_quantity: input.quantity,
-    p_unit_price: input.unit_price,
-    p_discount: input.discount ?? 0,
-    p_discount_type: input.discount_type ?? 'Amount',
-    p_payment_method: input.payment_method,
-    p_notes: input.notes ?? null,
-    p_sale_date: input.sale_date ?? new Date().toISOString(),
-  });
-  if (error) throw error;
-  return data;
+  return (await sheetsAction('recordSale', {
+    payload: {
+      ...input,
+      discount: input.discount ?? 0,
+      discount_type: input.discount_type ?? 'Amount',
+      sale_date: input.sale_date ?? new Date().toISOString(),
+    },
+  })) as { success: boolean; message: string; data?: any };
 }
 
 export async function voidSale(saleId: string): Promise<{ success: boolean; message: string }> {
-  const { data, error } = await supabase.rpc('void_sale', { p_sale_id: saleId });
-  if (error) throw error;
-  return data;
+  return (await sheetsAction('voidSale', { saleId })) as { success: boolean; message: string };
 }
 
 export async function fetchSales(limit?: number): Promise<SaleWithRelations[]> {
-  let q = supabase
-    .from('sales')
-    .select('*, product:products(id, product_name, brand), customer:customers(id, customer_name), batch:inventory_batches(id, batch_code, batch_name)')
-    .order('sale_date', { ascending: false });
-  if (limit) q = q.limit(limit);
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data ?? []) as SaleWithRelations[];
+  const sales = asArray<SaleWithRelations>(await sheetsAction('listSales'));
+  return limit ? sales.slice(0, limit) : sales;
 }
 
 export async function fetchSalesByBatch(batchId: string): Promise<SaleWithRelations[]> {
-  const { data, error } = await supabase
-    .from('sales')
-    .select('*, product:products(id, product_name, brand), customer:customers(id, customer_name)')
-    .eq('batch_id', batchId)
-    .order('sale_date', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as SaleWithRelations[];
+  return asArray<SaleWithRelations>(await sheetsAction('listSalesByBatch', { batchId }));
 }
 
 export async function fetchSalesByCustomer(customerId: string): Promise<SaleWithRelations[]> {
-  const { data, error } = await supabase
-    .from('sales')
-    .select('*, product:products(id, product_name, brand), batch:inventory_batches(id, batch_code, batch_name)')
-    .eq('customer_id', customerId)
-    .order('sale_date', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as SaleWithRelations[];
+  return asArray<SaleWithRelations>(await sheetsAction('listSalesByCustomer', { customerId }));
 }
 
 // ---------- Expenses ----------
 
 export async function fetchExpenses(): Promise<ExpenseWithBatch[]> {
-  const { data, error } = await supabase
-    .from('expenses')
-    .select('*, batch:inventory_batches(id, batch_code, batch_name)')
-    .order('expense_date', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as ExpenseWithBatch[];
+  return asArray<ExpenseWithBatch>(await sheetsAction('listExpenses'));
 }
 
 export async function fetchExpensesByBatch(batchId: string): Promise<Expense[]> {
-  const { data, error } = await supabase
-    .from('expenses')
-    .select('*')
-    .eq('batch_id', batchId)
-    .order('expense_date', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Expense[];
+  return asArray<Expense>(await sheetsAction('listExpensesByBatch', { batchId }));
 }
 
 export async function createExpense(input: {
@@ -358,57 +238,18 @@ export async function createExpense(input: {
   expense_date: string;
   description?: string | null;
 }): Promise<Expense> {
-  const expense_code = await generateBusinessIdRpc('EXP');
-  const { data, error } = await supabase
-    .from('expenses')
-    .insert({ ...input, expense_code })
-    .select()
-    .single();
-  if (error) throw error;
-
-  // If batch expense, recompute batch and create a Needs wallet outflow
-  if (input.expense_type === 'Batch' && input.batch_id) {
-    await supabase.rpc('recompute_batch_if_active', { p_batch_id: input.batch_id });
-    await createWalletTransaction({
-      wallet: 'Needs',
-      transaction_type: 'Expense',
-      batch_id: input.batch_id,
-      amount: input.amount,
-      reason: `Expense: ${input.expense_name}`,
-    });
-  } else {
-    // Business expense also deducts from Needs wallet
-    await createWalletTransaction({
-      wallet: 'Needs',
-      transaction_type: 'Expense',
-      amount: input.amount,
-      reason: `Business expense: ${input.expense_name}`,
-    });
-  }
-
-  await logActivity('Expense Added', 'Expenses', (data as Expense).id, `Recorded ${input.expense_type} expense ${input.expense_name} (${input.amount})`);
-  return data as Expense;
+  return (await sheetsAction('createExpense', { payload: input })) as Expense;
 }
 
 // ---------- Wallets ----------
 
 export async function fetchWalletTransactions(): Promise<WalletTransaction[]> {
-  const { data, error } = await supabase
-    .from('wallet_transactions')
-    .select('*, batch:inventory_batches(id, batch_code, batch_name)')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as WalletTransaction[];
+  return asArray<WalletTransaction>(await sheetsAction('listWalletTransactions'));
 }
 
 export async function fetchWalletTransactionsByWallet(wallet: WalletName): Promise<WalletTransaction[]> {
-  const { data, error } = await supabase
-    .from('wallet_transactions')
-    .select('*')
-    .eq('wallet', wallet)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as WalletTransaction[];
+  const tx = asArray<WalletTransaction>(await sheetsAction('listWalletTransactions'));
+  return tx.filter((t) => t.wallet === wallet);
 }
 
 export async function createWalletTransaction(input: {
@@ -419,41 +260,21 @@ export async function createWalletTransaction(input: {
   amount: number;
   reason?: string | null;
 }): Promise<WalletTransaction> {
-  const transaction_code = await generateBusinessIdRpc('WTX');
-  const { data, error } = await supabase
-    .from('wallet_transactions')
-    .insert({ ...input, transaction_code })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as WalletTransaction;
+  return (await sheetsCreate('WalletTransactions', input)) as WalletTransaction;
 }
 
 export async function closeBatch(batchId: string): Promise<{ success: boolean; message: string; data?: any }> {
-  const { data, error } = await supabase.rpc('close_batch', { p_batch_id: batchId });
-  if (error) throw error;
-  return data;
+  return (await sheetsAction('closeBatch', { batchId })) as { success: boolean; message: string; data?: any };
 }
 
 // ---------- Customers ----------
 
 export async function fetchCustomers(): Promise<Customer[]> {
-  const { data, error } = await supabase
-    .from('customers')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Customer[];
+  return asArray<Customer>(await sheetsList('Customers'));
 }
 
 export async function fetchCustomer(id: string): Promise<Customer | null> {
-  const { data, error } = await supabase
-    .from('customers')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-  if (error) throw error;
-  return data as Customer | null;
+  return (await sheetsGet('Customers', id)) as Customer | null;
 }
 
 export async function createCustomer(input: {
@@ -465,74 +286,120 @@ export async function createCustomer(input: {
   birthday?: string | null;
   notes?: string | null;
 }): Promise<Customer> {
-  const customer_code = await generateBusinessIdRpc('CUS');
-  const { data, error } = await supabase
-    .from('customers')
-    .insert({ ...input, customer_code })
-    .select()
-    .single();
-  if (error) throw error;
-  await logActivity('Customer Created', 'Customers', (data as Customer).id, `Added customer ${(data as Customer).customer_name}`);
-  return data as Customer;
+  const customer = (await sheetsCreate('Customers', {
+    ...input,
+    status: 'Active',
+  })) as Customer;
+  await logActivity('Customer Created', 'Customers', customer.id, `Added customer ${customer.customer_name}`);
+  return customer;
 }
 
 export async function updateCustomer(id: string, patch: Partial<Customer>): Promise<Customer> {
-  const { data, error } = await supabase
-    .from('customers')
-    .update(patch)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Customer;
+  return (await sheetsUpdate('Customers', id, patch)) as Customer;
 }
 
 // ---------- Notifications ----------
 
 export async function fetchNotifications(): Promise<Notification[]> {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Notification[];
+  return asArray<Notification>(await sheetsList('Notifications'));
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('id', id);
-  if (error) throw error;
+  await sheetsUpdate('Notifications', id, { read: true });
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('read', false);
-  if (error) throw error;
+  const all = asArray<Notification>(await sheetsList('Notifications'));
+  await Promise.all(
+    all.filter((n) => !n.read).map((n) => sheetsUpdate('Notifications', n.id, { read: true })),
+  );
 }
 
 // ---------- Activity logs ----------
 
 export async function logActivity(action: string, module: string, referenceId?: string, description?: string): Promise<void> {
-  const log_code = await generateBusinessIdRpc('LOG');
-  await supabase.from('activity_logs').insert({
-    log_code,
-    action,
-    module,
-    reference_id: referenceId ?? null,
+  await sheetsAction('logActivity', {
+    actor: 'System',
+    actionName: action,
+    moduleName: module,
+    referenceId: referenceId ?? null,
     description: description ?? null,
   });
 }
 
 export async function fetchActivityLogs(limit: number = 50): Promise<any[]> {
-  const { data, error } = await supabase
-    .from('activity_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return data ?? [];
+  const logs = asArray<any>(await sheetsList('ActivityLogs'));
+  return logs.slice(0, limit);
+}
+
+// ---------- Batched snapshots (one HTTP round-trip per page) ----------
+
+export interface DashboardSnapshot {
+  settings: Settings | null;
+  batches: InventoryBatch[];
+  products: Product[];
+  sales: SaleWithRelations[];
+  expenses: ExpenseWithBatch[];
+  walletTx: WalletTransaction[];
+  notifications: Notification[];
+}
+
+export interface InventorySnapshot {
+  batches: InventoryBatch[];
+  products: Product[];
+  suppliers: Supplier[];
+}
+
+export interface BatchSnapshot {
+  batch: InventoryBatch | null;
+  products: Product[];
+  sales: SaleWithRelations[];
+  expenses: Expense[];
+  walletTx: WalletTransaction[];
+}
+
+export interface SalesSnapshot {
+  sales: SaleWithRelations[];
+  products: Product[];
+  customers: Customer[];
+  batches: InventoryBatch[];
+}
+
+export interface WalletsSnapshot {
+  walletTx: WalletTransaction[];
+  settings: Settings | null;
+}
+
+export interface NotificationsSnapshot {
+  notifications: Notification[];
+}
+
+export async function fetchDashboardSnapshot(): Promise<DashboardSnapshot> {
+  return (await sheetsAction('getDashboardSnapshot')) as DashboardSnapshot;
+}
+
+export async function fetchInventorySnapshot(): Promise<InventorySnapshot> {
+  return (await sheetsAction('getInventorySnapshot')) as InventorySnapshot;
+}
+
+export async function fetchBatchSnapshot(id: string): Promise<BatchSnapshot> {
+  return (await sheetsAction('getBatchSnapshot', { id })) as BatchSnapshot;
+}
+
+export async function fetchSalesSnapshot(): Promise<SalesSnapshot> {
+  return (await sheetsAction('getSalesSnapshot')) as SalesSnapshot;
+}
+
+export async function fetchWalletsSnapshot(): Promise<WalletsSnapshot> {
+  return (await sheetsAction('getWalletsSnapshot')) as WalletsSnapshot;
+}
+
+export async function fetchNotificationsSnapshot(): Promise<NotificationsSnapshot> {
+  return (await sheetsAction('getNotificationsSnapshot')) as NotificationsSnapshot;
+}
+
+// Fire several actions in a single round-trip. Returns an array of each
+// action's unwrapped data (or a { success:false, message } error object).
+export async function sheetsBatch(actions: { action: string; params?: Record<string, any> }[]): Promise<any[]> {
+  return (await sheetsAction('batch', { actions })) as any[];
 }

@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { Bell, BellOff, Check, CheckCheck } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '../../hooks/queries';
+import { useNotificationsSnapshot, useMarkNotificationRead, useMarkAllNotificationsRead } from '../../hooks/queries';
 import { formatRelative } from '../../utils/format';
 import { Card, EmptyState, LoadingState, ErrorState, SectionHeader, Badge } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -17,7 +17,8 @@ const PRIORITY_META: Record<string, { color: string; dot: string }> = {
 };
 
 export function Notifications() {
-  const { data: notifications, isLoading, isError, refetch } = useNotifications();
+  const { data: snapshot, isLoading, isError, refetch } = useNotificationsSnapshot();
+  const notifications = snapshot?.notifications;
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 

@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Package, ChevronRight } from 'lucide-react';
-import { useBatches, useSuppliers } from '../../hooks/queries';
+import { useInventorySnapshot, useCreateBatch } from '../../hooks/queries';
 import { useApp } from '../../contexts/AppContext';
 import { formatMoney, formatMoneyCompact, formatPercent, formatDate } from '../../utils/format';
 import { Card, Badge, ProgressBar, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
@@ -14,12 +14,11 @@ import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Field, Input, Select, Textarea } from '../../components/common/Form';
 import { useFabRegistration } from '../../components/layout/AppLayout';
-import { useCreateBatch } from '../../hooks/queries';
 import { useToast } from '../../components/common/Toast';
 import { BATCH_STATUS_META, ACTIVE_BATCH_STATUSES } from '../../constants';
 import { todayInputDate } from '../../utils/format';
 import { totalBatchCost } from '../../services/calculations';
-import type { InventoryBatch } from '../../types';
+
 
 // (BatchStatus type removed — not used in this file)
 
@@ -27,8 +26,9 @@ type Tab = 'active' | 'completed' | 'archived' | 'all';
 
 export function InventoryList() {
   const { currencySymbol } = useApp();
-  const { data: batches, isLoading, isError, refetch } = useBatches();
-  const { data: suppliers } = useSuppliers();
+  const { data: snapshot, isLoading, isError, refetch } = useInventorySnapshot();
+  const batches = snapshot?.batches;
+  const suppliers = snapshot?.suppliers;
   const [tab, setTab] = useState<Tab>('active');
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);

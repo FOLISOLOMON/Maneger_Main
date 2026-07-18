@@ -35,6 +35,12 @@ export const qk = {
   customer: (id: string) => ['customer', id] as const,
   notifications: ['notifications'] as const,
   activityLogs: ['activity-logs'] as const,
+  dashboard: ['dashboard'] as const,
+  inventory: ['inventory'] as const,
+  batchSnapshot: (id: string) => ['batch-snapshot', id] as const,
+  salesSnapshot: ['sales-snapshot'] as const,
+  walletsSnapshot: ['wallets-snapshot'] as const,
+  notificationsSnapshot: ['notifications-snapshot'] as const,
 };
 
 // ---------- Settings ----------
@@ -118,8 +124,8 @@ export function useCreateBatch() {
   return useMutation({
     mutationFn: api.createBatch,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.batches });
-      qc.invalidateQueries({ queryKey: ['supplier-batches'] });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
     },
   });
 }
@@ -129,8 +135,9 @@ export function useUpdateBatch() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<InventoryBatch> }) => api.updateBatch(id, patch),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: qk.batches });
-      if (data.id) qc.invalidateQueries({ queryKey: qk.batch(data.id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
+      if (data.id) qc.invalidateQueries({ queryKey: qk.batchSnapshot(data.id) });
     },
   });
 }
@@ -140,8 +147,10 @@ export function useCloseBatch() {
   return useMutation({
     mutationFn: api.closeBatch,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.batches });
-      qc.invalidateQueries({ queryKey: qk.walletTx });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
+      qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
     },
   });
 }
@@ -165,10 +174,9 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: api.createProduct,
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: qk.products });
-      qc.invalidateQueries({ queryKey: qk.batchProducts(variables.batch_id) });
-      qc.invalidateQueries({ queryKey: qk.batches });
-      qc.invalidateQueries({ queryKey: qk.batch(variables.batch_id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
+      if (variables.batch_id) qc.invalidateQueries({ queryKey: qk.batchSnapshot(variables.batch_id) });
     },
   });
 }
@@ -178,10 +186,10 @@ export function useUpdateProduct() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<Product> }) => api.updateProduct(id, patch),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: qk.products });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
       if (data.batch_id) {
-        qc.invalidateQueries({ queryKey: qk.batchProducts(data.batch_id) });
-        qc.invalidateQueries({ queryKey: qk.batch(data.batch_id) });
+        qc.invalidateQueries({ queryKey: qk.batchSnapshot(data.batch_id) });
       }
     },
   });
@@ -218,10 +226,11 @@ export function useRecordSale() {
   return useMutation({
     mutationFn: api.recordSale,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.sales });
-      qc.invalidateQueries({ queryKey: qk.products });
-      qc.invalidateQueries({ queryKey: qk.batches });
-      qc.invalidateQueries({ queryKey: ['batch-products'] });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
+      qc.invalidateQueries({ queryKey: qk.salesSnapshot });
+      qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
     },
   });
 }
@@ -231,9 +240,9 @@ export function useVoidSale() {
   return useMutation({
     mutationFn: api.voidSale,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.sales });
-      qc.invalidateQueries({ queryKey: qk.products });
-      qc.invalidateQueries({ queryKey: qk.batches });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
+      qc.invalidateQueries({ queryKey: qk.salesSnapshot });
     },
   });
 }
@@ -257,13 +266,13 @@ export function useCreateExpense() {
   return useMutation({
     mutationFn: (input: Parameters<typeof api.createExpense>[0]) => api.createExpense(input),
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: qk.expenses });
-      if (variables.expense_type === 'Batch' && variables.batch_id) {
-        qc.invalidateQueries({ queryKey: qk.batch(variables.batch_id) });
-        qc.invalidateQueries({ queryKey: qk.batchExpenses(variables.batch_id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard });
+      qc.invalidateQueries({ queryKey: qk.inventory });
+      qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
+      if (variables.batch_id) {
+        qc.invalidateQueries({ queryKey: qk.batchSnapshot(variables.batch_id) });
       }
-      qc.invalidateQueries({ queryKey: qk.walletTx });
-      qc.invalidateQueries({ queryKey: qk.batches });
     },
   });
 }
@@ -324,7 +333,7 @@ export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.markNotificationRead,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.notifications }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.notificationsSnapshot }),
   });
 }
 
@@ -332,7 +341,7 @@ export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.markAllNotificationsRead,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.notifications }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.notificationsSnapshot }),
   });
 }
 
@@ -342,6 +351,57 @@ export function useActivityLogs(limit: number = 50) {
   return useQuery({
     queryKey: [...qk.activityLogs, limit] as const,
     queryFn: () => api.fetchActivityLogs(limit),
+    staleTime: 15_000,
+  });
+}
+
+// ---------- Batched snapshots (one HTTP round-trip per page) ----------
+
+export function useDashboardSnapshot() {
+  return useQuery({
+    queryKey: qk.dashboard,
+    queryFn: api.fetchDashboardSnapshot,
+    staleTime: 15_000,
+  });
+}
+
+export function useInventorySnapshot() {
+  return useQuery({
+    queryKey: qk.inventory,
+    queryFn: api.fetchInventorySnapshot,
+    staleTime: 15_000,
+  });
+}
+
+export function useBatchSnapshot(id: string | undefined) {
+  return useQuery({
+    queryKey: id ? qk.batchSnapshot(id) : ['batch-snapshot', 'missing'],
+    queryFn: () => api.fetchBatchSnapshot(id!),
+    enabled: !!id,
+    staleTime: 10_000,
+  });
+}
+
+export function useSalesSnapshot() {
+  return useQuery({
+    queryKey: qk.salesSnapshot,
+    queryFn: api.fetchSalesSnapshot,
+    staleTime: 10_000,
+  });
+}
+
+export function useWalletsSnapshot() {
+  return useQuery({
+    queryKey: qk.walletsSnapshot,
+    queryFn: api.fetchWalletsSnapshot,
+    staleTime: 10_000,
+  });
+}
+
+export function useNotificationsSnapshot() {
+  return useQuery({
+    queryKey: qk.notificationsSnapshot,
+    queryFn: api.fetchNotificationsSnapshot,
     staleTime: 15_000,
   });
 }

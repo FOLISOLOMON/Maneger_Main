@@ -81,8 +81,17 @@ export function walletBalances(
 ): WalletBalance[] {
   const wallets: WalletName[] = ['Needs', 'Savings', 'Growth'];
 
+  // Defensive: the Sheets backend can return a single object or null instead of
+  // an array (e.g. before the web app is redeployed). Coerce to an array so the
+  // UI never crashes on a malformed/empty response.
+  const list = Array.isArray(transactions)
+    ? transactions
+    : transactions && typeof transactions === 'object'
+      ? [transactions]
+      : [];
+
   return wallets.map((wallet) => {
-    const txs = transactions.filter((t) => t.wallet === wallet);
+    const txs = list.filter((t) => t && t.wallet === wallet);
     // Allocation, Adjustment, Transfer-in are positive; Expense, Withdrawal, Transfer-out are negative.
     // In our ledger, amount is stored positive for inflows and we flip for outflows by type.
     let balance = 0;

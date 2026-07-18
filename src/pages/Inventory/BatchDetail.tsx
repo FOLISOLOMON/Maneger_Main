@@ -11,8 +11,7 @@ import {
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import {
-  useBatch, useBatchProducts, useBatchSales, useBatchExpenses,
-  useCreateProduct, useCloseBatch,
+  useBatchSnapshot, useCreateProduct, useCloseBatch,
 } from '../../hooks/queries';
 import {
   formatMoney, formatMoneyCompact, formatPercent, formatDate, formatRelative,
@@ -34,10 +33,11 @@ type Tab = 'overview' | 'products' | 'sales' | 'expenses';
 export function BatchDetail() {
   const { id } = useParams<{ id: string }>();
   const { currencySymbol, settings } = useApp();
-  const { data: batch, isLoading, isError, refetch } = useBatch(id);
-  const { data: products } = useBatchProducts(id);
-  const { data: sales } = useBatchSales(id);
-  const { data: expenses } = useBatchExpenses(id);
+  const { data: snapshot, isLoading, isError, refetch } = useBatchSnapshot(id);
+  const batch = snapshot?.batch;
+  const products = snapshot?.products;
+  const sales = snapshot?.sales;
+  const expenses = snapshot?.expenses;
   const [tab, setTab] = useState<Tab>('overview');
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [closeConfirm, setCloseConfirm] = useState(false);

@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { Wallet, PiggyBank, TrendingUp, ArrowDownLeft, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
-import { useWalletTransactions, useCreateWalletTransaction } from '../../hooks/queries';
+import { useWalletsSnapshot, useCreateWalletTransaction } from '../../hooks/queries';
 import { walletBalances } from '../../services/calculations';
 import { formatMoney, formatMoneyCompact, formatRelative } from '../../utils/format';
 import { Card, EmptyState, LoadingState, ErrorState, SectionHeader, Badge } from '../../components/common/Card';
@@ -23,7 +23,8 @@ const WALLET_ICONS = { Needs: Wallet, Savings: PiggyBank, Growth: TrendingUp };
 
 export function Wallets() {
   const { currencySymbol } = useApp();
-  const { data: tx, isLoading, isError, refetch } = useWalletTransactions();
+  const { data: snapshot, isLoading, isError, refetch } = useWalletsSnapshot();
+  const tx = snapshot?.walletTx;
   const [activeWallet, setActiveWallet] = useState<WalletName>('Needs');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);

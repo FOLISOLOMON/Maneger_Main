@@ -8,7 +8,7 @@ import { ShoppingCart, Plus, CreditCard, Banknote, Smartphone } from 'lucide-rea
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import {
-  useSales, useBatches, useProducts, useCustomers, useRecordSale,
+  useSalesSnapshot, useRecordSale,
 } from '../../hooks/queries';
 import {
   formatMoney, formatRelative,
@@ -26,7 +26,11 @@ import { ShoppingCart as CartIcon, TrendingUp } from 'lucide-react';
 
 export function Sales() {
   const { currencySymbol } = useApp();
-  const { data: sales, isLoading, isError, refetch } = useSales();
+  const { data: snapshot, isLoading, isError, refetch } = useSalesSnapshot();
+  const sales = snapshot?.sales;
+  const batches = snapshot?.batches;
+  const products = snapshot?.products;
+  const customers = snapshot?.customers;
   const [search, setSearch] = useState('');
   const [recordOpen, setRecordOpen] = useState(false);
   const recordSale = useRecordSale();
@@ -113,6 +117,9 @@ export function Sales() {
         onClose={() => setRecordOpen(false)}
         currencySymbol={currencySymbol}
         recording={recordSale.isPending}
+        batches={batches ?? []}
+        products={products ?? []}
+        customers={customers ?? []}
         onRecord={async (payload) => {
           try {
             const res = await recordSale.mutateAsync(payload);
@@ -147,12 +154,12 @@ interface RecordSaleModalProps {
   currencySymbol: string;
   recording: boolean;
   onRecord: (payload: any) => void;
+  batches: any[];
+  products: any[];
+  customers: any[];
 }
 
-function RecordSaleModal({ open, onClose, currencySymbol, recording, onRecord }: RecordSaleModalProps) {
-  const { data: batches } = useBatches();
-  const { data: products } = useProducts();
-  const { data: customers } = useCustomers();
+function RecordSaleModal({ open, onClose, currencySymbol, recording, onRecord, batches, products, customers }: RecordSaleModalProps) {
   const toast = useToast();
 
   const [batchId, setBatchId] = useState('');
