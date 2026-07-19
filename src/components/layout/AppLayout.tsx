@@ -2,8 +2,9 @@
 // Spec section 7.3: mobile-first with bottom nav, desktop with sidebar.
 // Header shows business name, sync status, notifications. FAB is
 // context-aware (spec 7.5) and provided by each page via useFab.
+// Colors use the brand design tokens; logo uses the official Veloura mark.
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
@@ -13,7 +14,7 @@ import {
 import { useApp } from '../../contexts/AppContext';
 import { useNotifications } from '../../hooks/queries';
 import { NAV_ITEMS, MORE_ITEMS } from '../../constants';
-import { useState } from 'react';
+import { logos } from '../../theme/designTokens';
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, BarChart3, Menu, X,
@@ -77,7 +78,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         className={({ isActive }) =>
           clsx(
             'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors',
-            isActive ? 'bg-plum-50 text-plum-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+            isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-surface-alt hover:text-text-primary',
           )
         }
       >
@@ -88,23 +89,21 @@ export function AppLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-60 border-r border-slate-200 bg-white p-4 fixed inset-y-0 left-0 z-30">
+      <aside className="hidden md:flex flex-col w-60 border-r border-border bg-surface p-4 fixed inset-y-0 left-0 z-30">
         <div className="flex items-center gap-2.5 px-2 py-3 mb-4">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-plum-600 to-plum-800 flex items-center justify-center text-white font-display font-bold text-lg">
-            V
-          </div>
+          <img src={logos.icon.gold} alt="Avencia" className="w-9 h-9 rounded-xl object-contain" />
           <div className="min-w-0">
-            <p className="font-display font-bold text-slate-900 text-sm leading-tight truncate">Veloura</p>
-            <p className="text-[11px] text-slate-500 leading-tight truncate">{settings?.business_name ?? 'Manager'}</p>
+            <p className="font-display font-bold text-text-primary text-sm leading-tight truncate">Avencia</p>
+            <p className="text-[11px] text-text-muted leading-tight truncate">{settings?.business_name ?? 'Manager'}</p>
           </div>
         </div>
         <nav className="flex-1 space-y-1">
           {NAV_ITEMS.map((item) => (
             <SidebarLink key={item.to} to={item.to} label={item.label} icon={item.icon} />
           ))}
-          <p className="px-3 pt-4 pb-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">More</p>
+          <p className="px-3 pt-4 pb-1 text-[11px] font-semibold text-text-muted uppercase tracking-wider">More</p>
           {MORE_ITEMS.map((item) => (
             <SidebarLink key={item.to} to={item.to} label={item.label} icon={item.icon} />
           ))}
@@ -123,7 +122,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {fab && (
         <button
           onClick={fab.onClick}
-          className="fixed right-4 bottom-20 md:bottom-6 z-40 h-14 pl-4 pr-5 rounded-2xl bg-plum-700 text-white shadow-fab hover:bg-plum-800 active:scale-95 transition-all flex items-center gap-2 font-semibold"
+          className="fixed right-4 bottom-20 md:bottom-6 z-40 h-14 pl-4 pr-5 rounded-2xl bg-action text-white shadow-fab hover:bg-action-light active:scale-95 transition-all flex items-center gap-2 font-semibold"
           aria-label={fab.label}
         >
           {fab.icon ? <fab.icon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -132,7 +131,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-surface border-t border-border pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-4 h-16">
           {NAV_ITEMS.map((item) => {
             const Icon = ICONS[item.icon] ?? LayoutDashboard;
@@ -144,7 +143,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 className={({ isActive }) =>
                   clsx(
                     'flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors touch-target',
-                    isActive ? 'text-plum-700' : 'text-slate-400',
+                    isActive ? 'text-accent' : 'text-text-muted',
                   )
                 }
               >
@@ -160,16 +159,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {moreOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in"
+            className="absolute inset-0 bg-scrim/50 backdrop-blur-sm animate-fade-in"
             onClick={() => setMoreOpen(false)}
           />
-          <div className="absolute right-0 inset-y-0 w-[80%] max-w-xs bg-white shadow-xl flex flex-col animate-slide-in">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-slate-200">
-              <h3 className="font-display font-bold text-slate-900">More</h3>
+          <div className="absolute right-0 inset-y-0 w-[80%] max-w-xs bg-surface shadow-xl flex flex-col animate-slide-in">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-border">
+              <h3 className="font-display font-bold text-text-primary">More</h3>
               <button
                 onClick={() => setMoreOpen(false)}
                 aria-label="Close"
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-text-muted hover:bg-surface-alt"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -181,9 +180,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
                   <Link
                     key={item.to}
                     to={item.to}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-100 transition-colors"
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-text-secondary hover:bg-surface-alt active:bg-surface-alt transition-colors"
                   >
-                    <span className="w-9 h-9 rounded-xl bg-plum-50 text-plum-700 flex items-center justify-center flex-shrink-0">
+                    <span className="w-9 h-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center flex-shrink-0">
                       <Icon className="w-5 h-5" />
                     </span>
                     {item.label}
@@ -204,17 +203,15 @@ function Header({ onMore }: { onMore: () => void }) {
   const unread = (notifications ?? []).filter((n) => !n.read).length;
 
   return (
-    <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200">
+    <header className="sticky top-0 z-20 glass border-b border-border">
       <div className="h-14 px-4 flex items-center justify-between gap-3 max-w-5xl mx-auto">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-plum-600 to-plum-800 flex items-center justify-center text-white font-display font-bold text-sm flex-shrink-0">
-            V
-          </div>
+          <img src={logos.icon.gold} alt="Avencia" className="md:hidden w-8 h-8 rounded-lg object-contain flex-shrink-0" />
           <div className="min-w-0">
-            <p className="font-display font-bold text-slate-900 text-sm leading-tight truncate">
-              {settings?.business_name ?? 'Veloura Manager'}
+            <p className="font-display font-bold text-text-primary text-sm leading-tight truncate">
+              {settings?.business_name ?? 'Avencia Manager'}
             </p>
-            <p className="text-[11px] text-slate-500 leading-tight truncate">
+            <p className="text-[11px] text-text-muted leading-tight truncate">
               {settings?.owner_name ? `Welcome, ${settings.owner_name}` : 'Business management'}
             </p>
           </div>
@@ -222,12 +219,12 @@ function Header({ onMore }: { onMore: () => void }) {
         <div className="flex items-center gap-1">
           <Link
             to="/notifications"
-            className="relative w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors touch-target"
+            className="relative w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-surface-alt hover:text-text-primary transition-colors touch-target"
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5" />
             {unread > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-danger text-white text-[10px] font-bold flex items-center justify-center">
                 {unread > 9 ? '9+' : unread}
               </span>
             )}
@@ -235,7 +232,7 @@ function Header({ onMore }: { onMore: () => void }) {
           <button
             onClick={onMore}
             aria-label="More"
-            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors touch-target"
+            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-surface-alt hover:text-text-primary transition-colors touch-target"
           >
             <Menu className="w-5 h-5" />
           </button>

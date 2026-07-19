@@ -81,7 +81,7 @@ export function InventoryList() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-3.5 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-              tab === t.key ? 'bg-plum-700 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              tab === t.key ? 'bg-action text-white' : 'bg-surface text-text-secondary border border-border hover:bg-surface-alt'
             }`}
           >
             {t.label}
@@ -108,26 +108,26 @@ export function InventoryList() {
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-display font-bold text-slate-900 truncate">{b.batch_name}</h3>
+                        <h3 className="font-display font-bold text-text-primary truncate">{b.batch_name}</h3>
                         <Badge color={meta.color} dot={meta.dot}>{meta.label}</Badge>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-text-muted mt-0.5">
                         {b.batch_code} · {(b as BatchWithSupplier).supplier?.supplier_name ?? 'Unknown supplier'} · {formatDate(b.purchase_date)}
                       </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 mt-1" />
+                    <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0 mt-1" />
                   </div>
 
                   <div className="grid grid-cols-4 gap-2 text-center">
                     <Stat label="Revenue" value={formatMoneyCompact(b.gross_revenue, currencySymbol)} />
-                    <Stat label="Net Profit" value={formatMoneyCompact(b.net_profit, currencySymbol)} valueClass={b.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600'} />
+                    <Stat label="Net Profit" value={formatMoneyCompact(b.net_profit, currencySymbol)} valueClass={b.net_profit >= 0 ? 'text-success' : 'text-danger'} />
                     <Stat label="ROI" value={formatPercent(b.roi)} />
                     <Stat label="Stock" value={`${b.remaining_stock}`} />
                   </div>
 
                   <div className="mt-3 flex items-center gap-2">
-                    <ProgressBar value={b.completion_percentage} barClassName={b.completion_percentage >= 100 ? 'bg-emerald-500' : 'bg-plum-600'} />
-                    <span className="text-xs font-semibold text-slate-600 tabular-nums flex-shrink-0 w-10 text-right">{formatPercent(b.completion_percentage, 0)}</span>
+                    <ProgressBar value={b.completion_percentage} barClassName={b.completion_percentage >= 100 ? 'bg-success' : 'bg-accent'} />
+                    <span className="text-xs font-semibold text-text-secondary tabular-nums flex-shrink-0 w-10 text-right">{formatPercent(b.completion_percentage, 0)}</span>
                   </div>
                 </Card>
               </Link>
@@ -157,11 +157,11 @@ export function InventoryList() {
   );
 }
 
-function Stat({ label, value, valueClass = 'text-slate-900' }: { label: string; value: string; valueClass?: string }) {
+function Stat({ label, value, valueClass = 'text-text-primary' }: { label: string; value: string; valueClass?: string }) {
   return (
     <div>
       <p className={`text-sm font-bold tabular-nums ${valueClass}`}>{value}</p>
-      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{label}</p>
+      <p className="text-[10px] text-text-muted font-medium uppercase tracking-wide">{label}</p>
     </div>
   );
 }
@@ -268,8 +268,8 @@ export function CreateBatchModal({ open, onClose, suppliers, currencySymbol, cre
           </Field>
         </div>
 
-        <div className="rounded-xl bg-slate-50 p-3 space-y-3">
-          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Purchase Costs</p>
+        <div className="rounded-xl bg-surface-alt p-3 space-y-3">
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Purchase Costs</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Inventory cost">
               <Input type="number" value={purchaseCost} onChange={(e) => setPurchaseCost(e.target.value)} prefix={currencySymbol} placeholder="0.00" />
@@ -290,9 +290,9 @@ export function CreateBatchModal({ open, onClose, suppliers, currencySymbol, cre
               <Input type="number" value={otherCosts} onChange={(e) => setOtherCosts(e.target.value)} prefix={currencySymbol} placeholder="0.00" />
             </Field>
           </div>
-          <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-            <span className="text-sm font-semibold text-slate-700">Total batch cost</span>
-            <span className="text-lg font-display font-bold text-plum-700 tabular-nums">{formatMoney(total, currencySymbol)}</span>
+          <div className="flex justify-between items-center pt-2 border-t border-border">
+            <span className="text-sm font-semibold text-text-secondary">Total batch cost</span>
+            <span className="text-lg font-display font-bold text-accent tabular-nums">{formatMoney(total, currencySymbol)}</span>
           </div>
         </div>
 

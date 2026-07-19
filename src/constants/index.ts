@@ -97,20 +97,20 @@ export const BATCH_STATUS_META: Record<
   BatchStatus,
   { label: string; color: string; dot: string }
 > = {
-  Draft: { label: 'Draft', color: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400' },
-  Purchased: { label: 'Purchased', color: 'bg-blue-50 text-blue-700', dot: 'bg-blue-500' },
-  Selling: { label: 'Selling', color: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
+  Draft: { label: 'Draft', color: 'bg-surface-alt text-text-secondary', dot: 'bg-text-muted' },
+  Purchased: { label: 'Purchased', color: 'bg-info-bg text-info', dot: 'bg-info' },
+  Selling: { label: 'Selling', color: 'bg-success-bg text-success', dot: 'bg-success' },
   'Almost Finished': {
     label: 'Almost Finished',
-    color: 'bg-amber-50 text-amber-700',
-    dot: 'bg-amber-500',
+    color: 'bg-warning-bg text-warning',
+    dot: 'bg-warning',
   },
   Completed: {
     label: 'Completed',
-    color: 'bg-violet-50 text-violet-700',
-    dot: 'bg-violet-500',
+    color: 'bg-accent/15 text-accent-muted',
+    dot: 'bg-accent',
   },
-  Archived: { label: 'Archived', color: 'bg-zinc-100 text-zinc-500', dot: 'bg-zinc-400' },
+  Archived: { label: 'Archived', color: 'bg-surface-alt text-text-muted', dot: 'bg-border-strong' },
 };
 
 export const WALLET_META: Record<
@@ -119,23 +119,23 @@ export const WALLET_META: Record<
 > = {
   Needs: {
     label: 'Needs',
-    color: 'text-blue-700',
-    bg: 'bg-blue-50',
-    ring: 'ring-blue-200',
+    color: 'text-info',
+    bg: 'bg-info-bg',
+    ring: 'ring-info/20',
     icon: 'Wallet',
   },
   Savings: {
     label: 'Savings',
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-50',
-    ring: 'ring-emerald-200',
+    color: 'text-success',
+    bg: 'bg-success-bg',
+    ring: 'ring-success/20',
     icon: 'PiggyBank',
   },
   Growth: {
     label: 'Growth',
-    color: 'text-amber-700',
-    bg: 'bg-amber-50',
-    ring: 'ring-amber-200',
+    color: 'text-accent-muted',
+    bg: 'bg-accent/15',
+    ring: 'ring-accent/20',
     icon: 'TrendingUp',
   },
 };

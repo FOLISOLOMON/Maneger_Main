@@ -12,6 +12,7 @@ import { Card, SectionHeader, LoadingState } from '../../components/common/Card'
 import { Button } from '../../components/common/Button';
 import { Field, Input, Select } from '../../components/common/Form';
 import { useToast } from '../../components/common/Toast';
+import { logos } from '../../theme/designTokens';
 
 export function Settings() {
   const { settings } = useApp();
@@ -95,8 +96,8 @@ export function Settings() {
       {/* Business info */}
       <Card padding="md">
         <div className="flex items-center gap-2 mb-3">
-          <Store className="w-5 h-5 text-plum-700" />
-          <h3 className="font-display font-bold text-slate-900">Business information</h3>
+          <Store className="w-5 h-5 text-accent" />
+          <h3 className="font-display font-bold text-text-primary">Business information</h3>
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -124,8 +125,8 @@ export function Settings() {
       {/* Appearance */}
       <Card padding="md">
         <div className="flex items-center gap-2 mb-3">
-          <Palette className="w-5 h-5 text-plum-700" />
-          <h3 className="font-display font-bold text-slate-900">Appearance & currency</h3>
+          <Palette className="w-5 h-5 text-accent" />
+          <h3 className="font-display font-bold text-text-primary">Appearance & currency</h3>
         </div>
         <div className="space-y-3">
           <Field label="Currency">
@@ -141,7 +142,7 @@ export function Settings() {
                   onClick={() => setForm({ ...form, theme: t })}
                   className={clsx(
                     'h-11 rounded-xl text-sm font-semibold border capitalize transition-colors',
-                    form.theme === t ? 'bg-plum-50 border-plum-500 text-plum-700' : 'bg-white border-slate-300 text-slate-600',
+                    form.theme === t ? 'bg-accent/10 border-accent text-accent' : 'bg-surface border-border text-text-secondary',
                   )}
                 >
                   {t}
@@ -155,10 +156,10 @@ export function Settings() {
       {/* Wallet percentages */}
       <Card padding="md">
         <div className="flex items-center gap-2 mb-3">
-          <Percent className="w-5 h-5 text-plum-700" />
-          <h3 className="font-display font-bold text-slate-900">Wallet allocation</h3>
+          <Percent className="w-5 h-5 text-accent" />
+          <h3 className="font-display font-bold text-text-primary">Wallet allocation</h3>
         </div>
-        <p className="text-xs text-slate-500 mb-3">How net profit splits when a batch closes. Must total 100%.</p>
+        <p className="text-xs text-text-muted mb-3">How net profit splits when a batch closes. Must total 100%.</p>
         <div className="grid grid-cols-3 gap-3">
           <Field label="Needs">
             <Input type="number" value={form.needs_percentage} onChange={(e) => setForm({ ...form, needs_percentage: Number(e.target.value) })} prefix="%" />
@@ -170,7 +171,7 @@ export function Settings() {
             <Input type="number" value={form.growth_percentage} onChange={(e) => setForm({ ...form, growth_percentage: Number(e.target.value) })} prefix="%" />
           </Field>
         </div>
-        <p className={clsx('text-xs font-semibold mt-2', pctTotal === 100 ? 'text-emerald-600' : 'text-red-600')}>
+        <p className={clsx('text-xs font-semibold mt-2', pctTotal === 100 ? 'text-success' : 'text-danger')}>
           Total: {pctTotal}% {pctTotal === 100 ? '— perfect' : '— must equal 100%'}
         </p>
       </Card>
@@ -178,8 +179,8 @@ export function Settings() {
       {/* Thresholds */}
       <Card padding="md">
         <div className="flex items-center gap-2 mb-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600" />
-          <h3 className="font-display font-bold text-slate-900">Thresholds</h3>
+          <AlertTriangle className="w-5 h-5 text-warning" />
+          <h3 className="font-display font-bold text-text-primary">Thresholds</h3>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Low stock threshold" hint="Alert when stock drops to this">
@@ -193,13 +194,16 @@ export function Settings() {
 
       {/* About */}
       <Card padding="md">
-        <div className="flex items-center gap-2 mb-3">
-          <Info className="w-5 h-5 text-slate-500" />
-          <h3 className="font-display font-bold text-slate-900">About</h3>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <Info className="w-5 h-5 text-text-muted" />
+            <h3 className="font-display font-bold text-text-primary">About</h3>
+          </div>
+          <img src={logos.wordmark.gold} alt="Avencia Manager" className="h-6 w-auto object-contain" />
         </div>
-        <div className="text-sm text-slate-600 space-y-1">
-          <p>Veloura Manager V2 — Codename Phoenix</p>
-          <p className="text-xs text-slate-500">Offline-first perfume business management. Built with Supabase + React.</p>
+        <div className="text-sm text-text-secondary space-y-1">
+          <p>Avencia Manager V2 — Codename Phoenix</p>
+          <p className="text-xs text-text-muted">Offline-first perfume business management. Built with Supabase + React.</p>
         </div>
       </Card>
 

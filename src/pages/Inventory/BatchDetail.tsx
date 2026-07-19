@@ -75,12 +75,12 @@ export function BatchDetail() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Back link */}
-      <Link to="/inventory" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700">
+      <Link to="/inventory" className="inline-flex items-center gap-1.5 text-sm font-semibold text-text-muted hover:text-text-secondary">
         <ArrowLeft className="w-4 h-4" /> Inventory
       </Link>
 
       {/* Header card */}
-      <Card padding="lg" className="bg-gradient-to-br from-plum-600 to-plum-800 text-white border-0">
+      <Card padding="lg" className="bg-action text-white border-0">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -90,13 +90,13 @@ export function BatchDetail() {
                 {meta.label}
               </span>
             </div>
-            <p className="text-sm text-plum-100 mt-1">
+            <p className="text-sm text-text-secondary mt-1">
               {batch.batch_code} · {(batch as BatchWithSupplier).supplier?.supplier_name ?? 'Supplier'} · {formatDate(batch.purchase_date)}
             </p>
           </div>
           {health && (
             <div className="text-right flex-shrink-0">
-              <p className="text-[11px] uppercase tracking-wide text-plum-200 font-semibold">Health</p>
+              <p className="text-[11px] uppercase tracking-wide text-text-muted font-semibold">Health</p>
               <p className="text-lg font-display font-bold">{health.health}</p>
             </div>
           )}
@@ -104,19 +104,19 @@ export function BatchDetail() {
 
         <div className="grid grid-cols-4 gap-3 mt-5">
           <HeaderStat label="Revenue" value={formatMoneyCompact(batch.gross_revenue, currencySymbol)} />
-          <HeaderStat label="Net Profit" value={formatMoneyCompact(batch.net_profit, currencySymbol)} valueClass={batch.net_profit >= 0 ? 'text-emerald-300' : 'text-red-300'} />
+          <HeaderStat label="Net Profit" value={formatMoneyCompact(batch.net_profit, currencySymbol)} valueClass={batch.net_profit >= 0 ? 'text-success' : 'text-danger'} />
           <HeaderStat label="ROI" value={formatPercent(batch.roi)} />
           <HeaderStat label="Stock" value={`${batch.remaining_stock}`} />
         </div>
 
         <div className="mt-4">
-          <div className="flex justify-between text-xs text-plum-100 mb-1.5">
+          <div className="flex justify-between text-xs text-text-secondary mb-1.5">
             <span>Completion</span>
             <span className="font-semibold tabular-nums">{formatPercent(batch.completion_percentage, 0)}</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-plum-900/40 overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-border overflow-hidden">
             <div
-              className={clsx('h-full rounded-full transition-all duration-500', batch.completion_percentage >= 100 ? 'bg-emerald-400' : 'bg-gold-400')}
+              className={clsx('h-full rounded-full transition-all duration-500', batch.completion_percentage >= 100 ? 'bg-success' : 'bg-accent')}
               style={{ width: `${batch.completion_percentage}%` }}
             />
           </div>
@@ -126,13 +126,13 @@ export function BatchDetail() {
       {/* Close batch callout */}
       {batch.status !== 'Completed' && batch.status !== 'Archived' && (
         batch.remaining_stock === 0 ? (
-          <Card padding="md" className="bg-emerald-50 border-emerald-200 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+        <Card padding="md" className="bg-success-bg border-success/30 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-success-bg text-success flex items-center justify-center flex-shrink-0">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-emerald-900">Ready to close</p>
-              <p className="text-xs text-emerald-700">All stock sold. Close this batch to finalize profit and allocate wallets.</p>
+              <p className="text-sm font-semibold text-success">Ready to close</p>
+              <p className="text-xs text-success">All stock sold. Close this batch to finalize profit and allocate wallets.</p>
             </div>
             <Button size="sm" variant="primary" onClick={() => setCloseConfirm(true)}>Close Batch</Button>
           </Card>
@@ -140,9 +140,9 @@ export function BatchDetail() {
       )}
 
       {isClosed && (
-        <Card padding="md" className="bg-slate-100 border-slate-200 flex items-center gap-3">
-          <Lock className="w-5 h-5 text-slate-500 flex-shrink-0" />
-          <p className="text-sm text-slate-600 font-medium">This batch is {batch.status.toLowerCase()}. Records are read-only.</p>
+        <Card padding="md" className="bg-surface-alt border-border flex items-center gap-3">
+          <Lock className="w-5 h-5 text-text-muted flex-shrink-0" />
+          <p className="text-sm text-text-secondary font-medium">This batch is {batch.status.toLowerCase()}. Records are read-only.</p>
         </Card>
       )}
 
@@ -154,7 +154,7 @@ export function BatchDetail() {
             onClick={() => setTab(t.key)}
             className={clsx(
               'px-3.5 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5',
-              tab === t.key ? 'bg-plum-700 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50',
+              tab === t.key ? 'bg-action text-white' : 'bg-surface text-text-secondary border border-border hover:bg-surface-alt',
             )}
           >
             <t.icon className="w-4 h-4" />
@@ -168,9 +168,9 @@ export function BatchDetail() {
         <div className="space-y-3 animate-fade-in">
           <div className="grid grid-cols-2 gap-3">
             <Card padding="md">
-              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Total batch cost</p>
-              <p className="text-xl font-display font-bold text-slate-900 mt-1 tabular-nums">{formatMoney(batch.total_batch_cost, currencySymbol)}</p>
-              <div className="mt-2 space-y-1 text-xs text-slate-500">
+              <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">Total batch cost</p>
+              <p className="text-xl font-display font-bold text-text-primary mt-1 tabular-nums">{formatMoney(batch.total_batch_cost, currencySymbol)}</p>
+              <div className="mt-2 space-y-1 text-xs text-text-muted">
                 <Row label="Inventory" value={formatMoney(batch.purchase_cost, currencySymbol)} />
                 <Row label="Transport" value={formatMoney(batch.transport_cost, currencySymbol)} />
                 <Row label="Loading" value={formatMoney(batch.loading_cost, currencySymbol)} />
@@ -180,23 +180,23 @@ export function BatchDetail() {
               </div>
             </Card>
             <Card padding="md">
-              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Profit breakdown</p>
+              <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">Profit breakdown</p>
               <div className="mt-2 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Gross revenue</span>
+                  <span className="text-text-secondary">Gross revenue</span>
                   <span className="font-semibold tabular-nums">{formatMoney(batch.gross_revenue, currencySymbol)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Gross profit</span>
+                  <span className="text-text-secondary">Gross profit</span>
                   <span className="font-semibold tabular-nums">{formatMoney(batch.gross_profit, currencySymbol)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Batch expenses</span>
-                  <span className="font-semibold tabular-nums text-red-600">-{formatMoney((expenses ?? []).filter(e => e.expense_type === 'Batch').reduce((s, e) => s + e.amount, 0), currencySymbol)}</span>
+                  <span className="text-text-secondary">Batch expenses</span>
+                  <span className="font-semibold tabular-nums text-danger">-{formatMoney((expenses ?? []).filter(e => e.expense_type === 'Batch').reduce((s, e) => s + e.amount, 0), currencySymbol)}</span>
                 </div>
-                <div className="flex justify-between text-sm pt-2 border-t border-slate-100">
-                  <span className="font-semibold text-slate-700">Net profit</span>
-                  <span className={clsx('font-display font-bold tabular-nums', batch.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                <div className="flex justify-between text-sm pt-2 border-t border-border">
+                  <span className="font-semibold text-text-secondary">Net profit</span>
+                  <span className={clsx('font-display font-bold tabular-nums', batch.net_profit >= 0 ? 'text-success' : 'text-danger')}>
                     {formatMoney(batch.net_profit, currencySymbol)}
                   </span>
                 </div>
@@ -206,17 +206,17 @@ export function BatchDetail() {
 
           {batch.notes && (
             <Card padding="md">
-              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Notes</p>
-              <p className="text-sm text-slate-700">{batch.notes}</p>
+              <p className="text-xs text-text-muted font-semibold uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-sm text-text-secondary">{batch.notes}</p>
             </Card>
           )}
 
           {health && health.reasons.length > 0 && (
             <Card padding="md">
-              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Health signals</p>
+              <p className="text-xs text-text-muted font-semibold uppercase tracking-wide mb-2">Health signals</p>
               <div className="flex flex-wrap gap-2">
                 {health.reasons.map((r, i) => (
-                  <Badge key={i} color="bg-slate-100 text-slate-700">{r}</Badge>
+                  <Badge key={i} color="bg-surface-alt text-text-secondary">{r}</Badge>
                 ))}
               </div>
             </Card>
@@ -243,22 +243,22 @@ export function BatchDetail() {
               return (
                 <Card key={p.id} padding="md">
                   <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-plum-50 text-plum-700 flex items-center justify-center flex-shrink-0 font-display font-bold text-sm">
+                    <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center flex-shrink-0 font-display font-bold text-sm">
                       {p.product_name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-slate-900 text-sm truncate">{p.product_name}</h3>
-                        {p.brand && <span className="text-xs text-slate-500">{p.brand}</span>}
-                        {out && <Badge color="bg-red-50 text-red-700">Out of stock</Badge>}
-                        {low && <Badge color="bg-amber-50 text-amber-700">Low</Badge>}
+                        <h3 className="font-semibold text-text-primary text-sm truncate">{p.product_name}</h3>
+                        {p.brand && <span className="text-xs text-text-muted">{p.brand}</span>}
+                        {out && <Badge color="bg-danger-bg text-danger">Out of stock</Badge>}
+                        {low && <Badge color="bg-warning-bg text-warning">Low</Badge>}
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">{p.product_code} · {p.category ?? 'Uncategorized'}</p>
+                      <p className="text-xs text-text-muted mt-0.5">{p.product_code} · {p.category ?? 'Uncategorized'}</p>
                       <div className="grid grid-cols-4 gap-2 mt-2 text-center">
                         <MiniStat label="Stock" value={`${p.current_stock}/${p.initial_stock}`} />
                         <MiniStat label="Cost" value={formatMoney(p.cost_price, currencySymbol)} />
                         <MiniStat label="Price" value={formatMoney(p.selling_price, currencySymbol)} />
-                        <MiniStat label="Margin" value={formatPercent(margin)} valueClass={margin >= 30 ? 'text-emerald-600' : 'text-slate-700'} />
+                        <MiniStat label="Margin" value={formatPercent(margin)} valueClass={margin >= 30 ? 'text-success' : 'text-text-secondary'} />
                       </div>
                     </div>
                   </div>
@@ -276,17 +276,17 @@ export function BatchDetail() {
           ) : (
             (sales ?? []).map((s) => (
               <Card key={s.id} padding="sm" className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-success-bg text-success flex items-center justify-center flex-shrink-0">
                   <ShoppingCart className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{s.product?.product_name ?? 'Product'} × {s.quantity}</p>
-                  <p className="text-xs text-slate-500">{s.customer?.customer_name ?? 'Walk-in'} · {formatRelative(s.sale_date)}</p>
+                  <p className="text-sm font-semibold text-text-primary truncate">{s.product?.product_name ?? 'Product'} × {s.quantity}</p>
+                  <p className="text-xs text-text-muted">{s.customer?.customer_name ?? 'Walk-in'} · {formatRelative(s.sale_date)}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
-                  {s.status === 'Voided' && <Badge color="bg-red-50 text-red-700">Voided</Badge>}
-                  {s.status === 'Completed' && <p className="text-xs text-emerald-600 font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
+                  <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
+                  {s.status === 'Voided' && <Badge color="bg-danger-bg text-danger">Voided</Badge>}
+                  {s.status === 'Completed' && <p className="text-xs text-success font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
                 </div>
               </Card>
             ))
@@ -301,14 +301,14 @@ export function BatchDetail() {
           ) : (
             (expenses ?? []).map((e) => (
               <Card key={e.id} padding="sm" className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-warning-bg text-warning flex items-center justify-center flex-shrink-0">
                   <Receipt className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{e.expense_name}</p>
-                  <p className="text-xs text-slate-500">{e.category} · {formatDate(e.expense_date)}</p>
+                  <p className="text-sm font-semibold text-text-primary truncate">{e.expense_name}</p>
+                  <p className="text-xs text-text-muted">{e.category} · {formatDate(e.expense_date)}</p>
                 </div>
-                <p className="text-sm font-bold text-slate-900 tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
+                <p className="text-sm font-bold text-text-primary tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
               </Card>
             ))
           )}
@@ -340,12 +340,12 @@ export function BatchDetail() {
         message={
           <div>
             <p>This will finalize the batch and allocate <strong>{formatMoney(batch.net_profit, currencySymbol)}</strong> net profit to your wallets:</p>
-            <ul className="mt-2 space-y-1 text-xs text-slate-600">
+            <ul className="mt-2 space-y-1 text-xs text-text-secondary">
               <li>Needs ({settings?.needs_percentage}%): {formatMoney(batch.net_profit * (settings?.needs_percentage ?? 0) / 100, currencySymbol)}</li>
               <li>Savings ({settings?.savings_percentage}%): {formatMoney(batch.net_profit * (settings?.savings_percentage ?? 0) / 100, currencySymbol)}</li>
               <li>Growth ({settings?.growth_percentage}%): {formatMoney(batch.net_profit * (settings?.growth_percentage ?? 0) / 100, currencySymbol)}</li>
             </ul>
-            <p className="mt-2 text-xs text-amber-700 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" /> This action cannot be undone.</p>
+            <p className="mt-2 text-xs text-warning flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" /> This action cannot be undone.</p>
           </div>
         }
         confirmLabel="Close & Allocate"
@@ -375,7 +375,7 @@ function HeaderStat({ label, value, valueClass = 'text-white' }: { label: string
   return (
     <div>
       <p className={clsx('text-lg font-display font-bold tabular-nums', valueClass)}>{value}</p>
-      <p className="text-[11px] text-plum-200 font-medium uppercase tracking-wide">{label}</p>
+      <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">{label}</p>
     </div>
   );
 }
@@ -389,11 +389,11 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MiniStat({ label, value, valueClass = 'text-slate-900' }: { label: string; value: string; valueClass?: string }) {
+function MiniStat({ label, value, valueClass = 'text-text-primary' }: { label: string; value: string; valueClass?: string }) {
   return (
     <div>
       <p className={clsx('text-xs font-bold tabular-nums', valueClass)}>{value}</p>
-      <p className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</p>
+      <p className="text-[10px] text-text-muted uppercase tracking-wide">{label}</p>
     </div>
   );
 }
@@ -492,8 +492,8 @@ function AddProductModal({ open, onClose, currencySymbol, creating, onCreate }: 
           </Field>
         </div>
         {Number(sellingPrice) > 0 && (
-          <p className="text-xs font-semibold text-slate-600">
-            Profit margin: <span className={margin >= 30 ? 'text-emerald-600' : margin >= 10 ? 'text-amber-600' : 'text-red-600'}>{margin.toFixed(1)}%</span>
+          <p className="text-xs font-semibold text-text-secondary">
+            Profit margin: <span className={margin >= 30 ? 'text-success' : margin >= 10 ? 'text-warning' : 'text-danger'}>{margin.toFixed(1)}%</span>
           </p>
         )}
         <div className="grid grid-cols-2 gap-3">

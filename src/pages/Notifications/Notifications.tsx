@@ -12,9 +12,9 @@ import { Card, EmptyState, LoadingState, ErrorState, SectionHeader, Badge } from
 import { Button } from '../../components/common/Button';
 
 const PRIORITY_META: Record<string, { color: string; dot: string }> = {
-  High: { color: 'bg-red-50 text-red-700', dot: 'bg-red-500' },
-  Medium: { color: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
-  Low: { color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+  High: { color: 'bg-danger-bg text-danger', dot: 'bg-danger' },
+  Medium: { color: 'bg-warning-bg text-warning', dot: 'bg-warning' },
+  Low: { color: 'bg-surface-alt text-text-secondary', dot: 'bg-border-strong' },
 };
 
 export function Notifications() {
@@ -56,24 +56,24 @@ export function Notifications() {
       <Card
         key={n.id}
         padding="sm"
-        className={clsx('flex items-start gap-3', !n.read && 'ring-1 ring-plum-200 bg-plum-50/30')}
+        className={clsx('flex items-start gap-3', !n.read && 'ring-1 ring-accent/30 bg-accent/10')}
       >
         <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', meta.color)}>
           <Bell className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-slate-900 truncate">{n.title}</p>
+            <p className="text-sm font-semibold text-text-primary truncate">{n.title}</p>
             <Badge color={meta.color} dot={meta.dot}>{n.priority}</Badge>
-            {!n.read && <Badge color="bg-plum-100 text-plum-700">New</Badge>}
+            {!n.read && <Badge color="bg-accent/15 text-accent-muted">New</Badge>}
           </div>
-          <p className="text-xs text-slate-600 mt-0.5">{n.message}</p>
-          <p className="text-[11px] text-slate-400 mt-1">{formatRelative(n.created_at)}</p>
+          <p className="text-xs text-text-secondary mt-0.5">{n.message}</p>
+          <p className="text-[11px] text-text-muted mt-1">{formatRelative(n.created_at)}</p>
         </div>
         {!n.read && (
           <button
             onClick={() => markRead.mutate(n.id)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-emerald-600 transition-colors flex-shrink-0"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-alt hover:text-success transition-colors flex-shrink-0"
             aria-label="Mark read"
           >
             <Check className="w-4 h-4" />
@@ -103,7 +103,7 @@ export function Notifications() {
         <div className="space-y-5">
           {groups.map((g) => (
             <div key={g.label}>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{g.label}</p>
+              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">{g.label}</p>
               <div className="space-y-2">
                 {g.items.map(renderItem)}
               </div>

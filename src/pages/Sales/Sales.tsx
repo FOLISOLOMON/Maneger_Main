@@ -69,8 +69,8 @@ export function Sales() {
       <SectionHeader title="Sales" subtitle="Record and review every sale" />
 
       <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={CartIcon} label="Today's Sales" value={`${todayStats.count}`} hint="Completed today" iconBg="bg-plum-50" accent="text-plum-700" />
-        <StatCard icon={TrendingUp} label="Today's Revenue" value={formatMoney(todayStats.revenue, currencySymbol)} iconBg="bg-emerald-50" accent="text-emerald-600" />
+        <StatCard icon={CartIcon} label="Today's Sales" value={`${todayStats.count}`} hint="Completed today" iconBg="bg-accent/10" accent="text-accent" />
+        <StatCard icon={TrendingUp} label="Today's Revenue" value={formatMoney(todayStats.revenue, currencySymbol)} iconBg="bg-success-bg" accent="text-success" />
       </div>
 
       <SearchBar value={search} onChange={setSearch} placeholder="Search sales by product, customer, code…" />
@@ -88,25 +88,25 @@ export function Sales() {
         <div className="space-y-2.5">
           {filtered.map((s) => (
             <Card key={s.id} padding="sm" className="flex items-center gap-3" hover>
-              <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', s.status === 'Voided' ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600')}>
+              <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', s.status === 'Voided' ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success')}>
                 <ShoppingCart className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{s.product?.product_name ?? 'Product'}</p>
-                  {s.status === 'Voided' && <Badge color="bg-red-50 text-red-700">Voided</Badge>}
+                  <p className="text-sm font-semibold text-text-primary truncate">{s.product?.product_name ?? 'Product'}</p>
+                  {s.status === 'Voided' && <Badge color="bg-danger-bg text-danger">Voided</Badge>}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-text-muted mt-0.5">
                   {s.quantity} × {formatMoney(s.unit_price, currencySymbol)} · {s.customer?.customer_name ?? 'Walk-in'} · {formatRelative(s.sale_date)}
                 </p>
                 <div className="flex items-center gap-2 mt-1">
                   <PayBadge method={s.payment_method} />
-                  <span className="text-[11px] text-slate-400">{s.sale_code}</span>
+                  <span className="text-[11px] text-text-muted">{s.sale_code}</span>
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
-                {s.status === 'Completed' && <p className="text-xs text-emerald-600 font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
+                <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
+                {s.status === 'Completed' && <p className="text-xs text-success font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
               </div>
             </Card>
           ))}
@@ -143,7 +143,7 @@ export function Sales() {
 function PayBadge({ method }: { method: string }) {
   const Icon = method === 'Cash' ? Banknote : method === 'Mobile Money' ? Smartphone : CreditCard;
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md">
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-text-secondary bg-surface-alt px-1.5 py-0.5 rounded-md">
       <Icon className="w-3 h-3" />
       {method}
     </span>
@@ -296,14 +296,14 @@ function RecordSaleModal({ open, onClose, currencySymbol, recording, onRecord, b
         </Field>
 
         {/* Summary */}
-        <div className="rounded-xl bg-slate-50 p-3 space-y-2">
+        <div className="rounded-xl bg-surface-alt p-3 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Total sale</span>
-            <span className="font-bold text-slate-900 tabular-nums">{formatMoney(totalSale, currencySymbol)}</span>
+            <span className="text-text-secondary">Total sale</span>
+            <span className="font-bold text-text-primary tabular-nums">{formatMoney(totalSale, currencySymbol)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Estimated profit</span>
-            <span className={clsx('font-bold tabular-nums', profit >= 0 ? 'text-emerald-600' : 'text-red-600')}>{formatMoney(profit, currencySymbol)}</span>
+            <span className="text-text-secondary">Estimated profit</span>
+            <span className={clsx('font-bold tabular-nums', profit >= 0 ? 'text-success' : 'text-danger')}>{formatMoney(profit, currencySymbol)}</span>
           </div>
         </div>
       </div>

@@ -20,19 +20,21 @@ import {
 import { formatMoney, formatMoneyCompact, formatRelative } from '../../utils/format';
 import { Card, SectionHeader, EmptyState, LoadingState, ProgressBar, Badge } from '../../components/common/Card';
 import { StatCard } from '../../components/common/StatCard';
-import { ChartCard, CHART_COLORS } from '../../components/charts/ChartCard';
+import { ChartCard } from '../../components/charts/ChartCard';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { useFabRegistration } from '../../components/layout/AppLayout';
 import { BATCH_STATUS_META, WALLET_META } from '../../constants';
+import { chartColors } from '../../theme/designTokens';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { format, parseISO, eachDayOfInterval, subDays, isSameDay } from 'date-fns';
 
 export function Dashboard() {
-  const { currencySymbol } = useApp();
+  const { currencySymbol, theme } = useApp();
   const { data: snapshot, isLoading: batchesLoading } = useDashboardSnapshot();
+  const charts = chartColors(theme);
   const settings = snapshot?.settings ?? undefined;
   const batches = snapshot?.batches;
   const products = snapshot?.products;
@@ -86,10 +88,10 @@ export function Dashboard() {
       {/* Greeting */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-display font-extrabold text-2xl text-slate-900 tracking-tight">
+          <h1 className="font-display font-extrabold text-2xl text-text-primary tracking-tight">
             Hi, {settings?.owner_name?.split(' ')[0] ?? 'there'}
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">Here's how {settings?.business_name ?? 'your business'} is doing today.</p>
+          <p className="text-sm text-text-muted mt-0.5">Here's how {settings?.business_name ?? 'your business'} is doing today.</p>
         </div>
       </div>
 
@@ -100,38 +102,38 @@ export function Dashboard() {
           label="Today's Sales"
           value={formatMoney(kpis.todaySalesTotal, currencySymbol)}
           hint={`${kpis.todaySalesCount} sale${kpis.todaySalesCount === 1 ? '' : 's'}`}
-          iconBg="bg-plum-50"
-          accent="text-plum-700"
+          iconBg="bg-accent/10"
+          accent="text-accent"
         />
         <StatCard
           icon={TrendingUp}
           label="Today's Profit"
           value={formatMoney(kpis.todayProfit, currencySymbol)}
           hint="From completed sales"
-          iconBg="bg-emerald-50"
-          accent="text-emerald-600"
+          iconBg="bg-success-bg"
+          accent="text-success"
         />
         <StatCard
           icon={Receipt}
           label="Today's Expenses"
           value={formatMoney(kpis.todayExpenses, currencySymbol)}
           hint="Batch + business"
-          iconBg="bg-amber-50"
-          accent="text-amber-600"
+          iconBg="bg-warning-bg"
+          accent="text-warning"
         />
         <StatCard
           icon={Wallet}
           label="Business Cash"
           value={formatMoney(kpis.businessCash, currencySymbol)}
           hint="Across all wallets"
-          iconBg="bg-blue-50"
-          accent="text-blue-600"
+          iconBg="bg-info-bg"
+          accent="text-info"
         />
       </div>
 
       {/* Wallet cards */}
       <div>
-        <SectionHeader title="Wallets" subtitle="Net profit allocations" action={<Link to="/wallets" className="text-xs font-semibold text-plum-700 hover:underline">View all</Link>} />
+        <SectionHeader title="Wallets" subtitle="Net profit allocations" action={<Link to="/wallets" className="text-xs font-semibold text-accent hover:underline">View all</Link>} />
         <div className="grid grid-cols-3 gap-3">
           {kpis.wallets.map((w) => {
             const meta = WALLET_META[w.wallet];
@@ -143,8 +145,8 @@ export function Dashboard() {
                     {w.wallet === 'Savings' && <PiggyBank className={`w-5 h-5 ${meta.color}`} />}
                     {w.wallet === 'Growth' && <TrendingUp className={`w-5 h-5 ${meta.color}`} />}
                   </div>
-                  <p className="text-[11px] font-semibold text-slate-500">{meta.label}</p>
-                  <p className="text-sm font-display font-bold text-slate-900 mt-0.5 tabular-nums">
+                  <p className="text-[11px] font-semibold text-text-muted">{meta.label}</p>
+                  <p className="text-sm font-display font-bold text-text-primary mt-0.5 tabular-nums">
                     {formatMoneyCompact(w.balance, currencySymbol)}
                   </p>
                 </Link>
@@ -160,18 +162,18 @@ export function Dashboard() {
           <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_COLORS.plum} stopOpacity={0.25} />
-                <stop offset="100%" stopColor={CHART_COLORS.plum} stopOpacity={0} />
+                <stop offset="0%" stopColor={charts.accent} stopOpacity={0.25} />
+                <stop offset="100%" stopColor={charts.accent} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatMoneyCompact(Number(v), currencySymbol)} />
+            <CartesianGrid strokeDasharray="3 3" stroke={charts.grid} vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: charts.axis }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: charts.axis }} axisLine={false} tickLine={false} tickFormatter={(v) => formatMoneyCompact(Number(v), currencySymbol)} />
             <Tooltip
               formatter={(v) => [formatMoney(Number(v), currencySymbol), 'Revenue']}
-              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+              contentStyle={{ borderRadius: 12, border: `1px solid ${charts.grid}`, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
             />
-            <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS.plum} strokeWidth={2.5} fill="url(#salesGradient)" />
+            <Area type="monotone" dataKey="revenue" stroke={charts.accent} strokeWidth={2.5} fill="url(#salesGradient)" />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -181,7 +183,7 @@ export function Dashboard() {
         <SectionHeader
           title="Active Batches"
           subtitle={`${kpis.activeBatches} active · ${kpis.completedBatches} completed`}
-          action={<Link to="/inventory" className="text-xs font-semibold text-plum-700 hover:underline">View all</Link>}
+          action={<Link to="/inventory" className="text-xs font-semibold text-accent hover:underline">View all</Link>}
         />
         {activeBatches.length === 0 ? (
           <Card padding="md">
@@ -201,17 +203,17 @@ export function Dashboard() {
                   <Card padding="md" hover className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-slate-900 text-sm truncate">{b.batch_name}</p>
+                        <p className="font-semibold text-text-primary text-sm truncate">{b.batch_name}</p>
                         <Badge color={meta.color} dot={meta.dot}>{meta.label}</Badge>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-text-muted mt-0.5">
                         {b.batch_code} · {b.remaining_stock} in stock · {formatMoney(b.net_profit, currencySymbol)} profit
                       </p>
                       <div className="mt-2">
-                        <ProgressBar value={b.completion_percentage} barClassName={b.completion_percentage > 80 ? 'bg-emerald-500' : 'bg-plum-600'} />
+                        <ProgressBar value={b.completion_percentage} barClassName={b.completion_percentage > 80 ? 'bg-success' : 'bg-accent'} />
                       </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    <ArrowRight className="w-4 h-4 text-text-muted flex-shrink-0" />
                   </Card>
                 </Link>
               );
@@ -223,23 +225,23 @@ export function Dashboard() {
       {/* Recent activity */}
       <div className="grid md:grid-cols-2 gap-5">
         <div>
-          <SectionHeader title="Recent Sales" action={<Link to="/sales" className="text-xs font-semibold text-plum-700 hover:underline">All</Link>} />
+          <SectionHeader title="Recent Sales" action={<Link to="/sales" className="text-xs font-semibold text-accent hover:underline">All</Link>} />
           {recentSales.length === 0 ? (
             <Card padding="md"><EmptyState icon={<ShoppingBag className="w-7 h-7" />} title="No sales yet" description="Record your first sale to see it here." /></Card>
           ) : (
             <div className="space-y-2">
               {recentSales.map((s) => (
                 <Card key={s.id} padding="sm" className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-plum-50 text-plum-700 flex items-center justify-center flex-shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center flex-shrink-0">
                     <ShoppingBag className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{s.product?.product_name ?? 'Product'}</p>
-                    <p className="text-xs text-slate-500">{s.customer?.customer_name ?? 'Walk-in'} · {formatRelative(s.sale_date)}</p>
+                    <p className="text-sm font-semibold text-text-primary truncate">{s.product?.product_name ?? 'Product'}</p>
+                    <p className="text-xs text-text-muted">{s.customer?.customer_name ?? 'Walk-in'} · {formatRelative(s.sale_date)}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
-                    <p className="text-xs text-emerald-600 font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>
+                    <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
+                    <p className="text-xs text-success font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>
                   </div>
                 </Card>
               ))}
@@ -248,21 +250,21 @@ export function Dashboard() {
         </div>
 
         <div>
-          <SectionHeader title="Recent Expenses" action={<Link to="/expenses" className="text-xs font-semibold text-plum-700 hover:underline">All</Link>} />
+          <SectionHeader title="Recent Expenses" action={<Link to="/expenses" className="text-xs font-semibold text-accent hover:underline">All</Link>} />
           {recentExpenses.length === 0 ? (
             <Card padding="md"><EmptyState icon={<Receipt className="w-7 h-7" />} title="No expenses yet" description="Record an expense to track spending." /></Card>
           ) : (
             <div className="space-y-2">
               {recentExpenses.map((e) => (
                 <Card key={e.id} padding="sm" className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-warning-bg text-warning flex items-center justify-center flex-shrink-0">
                     <Receipt className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{e.expense_name}</p>
-                    <p className="text-xs text-slate-500">{e.category} · {formatRelative(e.expense_date)}</p>
+                    <p className="text-sm font-semibold text-text-primary truncate">{e.expense_name}</p>
+                    <p className="text-xs text-text-muted">{e.category} · {formatRelative(e.expense_date)}</p>
                   </div>
-                  <p className="text-sm font-bold text-slate-900 tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
+                  <p className="text-sm font-bold text-text-primary tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
                 </Card>
               ))}
             </div>
@@ -273,15 +275,15 @@ export function Dashboard() {
       {/* Low stock alert */}
       {kpis.lowStock > 0 && (
         <Link to="/inventory">
-          <Card padding="md" className="bg-amber-50 border-amber-200 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+          <Card padding="md" className="bg-warning-bg border-warning/30 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center flex-shrink-0">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">{kpis.lowStock} product{kpis.lowStock === 1 ? '' : 's'} low on stock</p>
-              <p className="text-xs text-amber-700">Tap to review and restock.</p>
+              <p className="text-sm font-semibold text-warning">{kpis.lowStock} product{kpis.lowStock === 1 ? '' : 's'} low on stock</p>
+              <p className="text-xs text-warning">Tap to review and restock.</p>
             </div>
-            <ArrowRight className="w-4 h-4 text-amber-600" />
+            <ArrowRight className="w-4 h-4 text-warning" />
           </Card>
         </Link>
       )}
@@ -289,12 +291,12 @@ export function Dashboard() {
       {/* Quick actions modal */}
       <Modal open={quickOpen} onClose={() => setQuickOpen(false)} title="Quick Actions" subtitle="Jump straight to a common task">
         <div className="grid grid-cols-2 gap-3 pb-2">
-          <QuickAction icon={PackagePlus} label="New Batch" to="/inventory" color="bg-plum-50 text-plum-700" />
-          <QuickAction icon={ShoppingCart} label="Record Sale" to="/sales" color="bg-emerald-50 text-emerald-600" />
-          <QuickAction icon={PackagePlus} label="Add Product" to="/inventory" color="bg-blue-50 text-blue-600" />
-          <QuickAction icon={Receipt} label="Add Expense" to="/expenses" color="bg-amber-50 text-amber-600" />
-          <QuickAction icon={Activity} label="View Reports" to="/reports" color="bg-slate-100 text-slate-700" />
-          <QuickAction icon={Wallet} label="Wallets" to="/wallets" color="bg-gold-50 text-gold-700" />
+          <QuickAction icon={PackagePlus} label="New Batch" to="/inventory" color="bg-accent/10 text-accent" />
+          <QuickAction icon={ShoppingCart} label="Record Sale" to="/sales" color="bg-success-bg text-success" />
+          <QuickAction icon={PackagePlus} label="Add Product" to="/inventory" color="bg-info-bg text-info" />
+          <QuickAction icon={Receipt} label="Add Expense" to="/expenses" color="bg-warning-bg text-warning" />
+          <QuickAction icon={Activity} label="View Reports" to="/reports" color="bg-surface-alt text-text-secondary" />
+          <QuickAction icon={Wallet} label="Wallets" to="/wallets" color="bg-accent/15 text-accent-muted" />
         </div>
       </Modal>
     </div>
@@ -303,11 +305,11 @@ export function Dashboard() {
 
 function QuickAction({ icon: Icon, label, to, color }: { icon: LucideIcon; label: string; to: string; color: string }) {
   return (
-    <Link to={to} className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-card-hover transition-all active:scale-95">
+          <Link to={to} className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-border hover:border-border-strong hover:shadow-card-hover transition-all active:scale-95">
       <div className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center`}>
         <Icon className="w-6 h-6" />
       </div>
-      <span className="text-sm font-semibold text-slate-700 text-center">{label}</span>
+      <span className="text-sm font-semibold text-text-secondary text-center">{label}</span>
     </Link>
   );
 }

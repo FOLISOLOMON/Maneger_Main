@@ -57,9 +57,9 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   }, [onClose]);
 
   const styles: Record<ToastType, string> = {
-    success: 'bg-emerald-600',
-    error: 'bg-red-600',
-    info: 'bg-slate-800',
+    success: 'bg-success',
+    error: 'bg-danger',
+    info: 'bg-action',
   };
   const Icon = toast.type === 'success' ? CheckCircle2 : toast.type === 'error' ? AlertCircle : Info;
 

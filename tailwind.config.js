@@ -5,41 +5,72 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Veloura brand — deep plum + gold accents (spec 7.20)
-        plum: {
-          50: '#faf5ff',
-          100: '#f3e8ff',
-          200: '#e9d5ff',
-          300: '#d8b4fe',
-          400: '#c084fc',
-          500: '#a855f7',
-          600: '#9333ea',
-          700: '#7e22ce',
-          800: '#6b21a8',
-          900: '#581c87',
-          950: '#3b0764',
+        // Veloura brand — matte black + metallic gold + ivory, driven by CSS
+        // variables declared in index.css so light/dark modes switch in one place.
+        primary: {
+          DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
+          light: 'rgb(var(--color-primary-light) / <alpha-value>)',
+          dark: 'rgb(var(--color-primary-dark) / <alpha-value>)',
         },
-        gold: {
-          50: '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706',
-          700: '#b45309',
-          800: '#92400e',
-          900: '#78350f',
+        action: {
+          DEFAULT: 'rgb(var(--color-action) / <alpha-value>)',
+          light: 'rgb(var(--color-action-light) / <alpha-value>)',
+          dark: 'rgb(var(--color-action-dark) / <alpha-value>)',
         },
+        accent: {
+          DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
+          light: 'rgb(var(--color-accent-light) / <alpha-value>)',
+          muted: 'rgb(var(--color-accent-muted) / <alpha-value>)',
+        },
+        background: 'rgb(var(--color-background) / <alpha-value>)',
+        surface: {
+          DEFAULT: 'rgb(var(--color-surface) / <alpha-value>)',
+          alt: 'rgb(var(--color-surface-alt) / <alpha-value>)',
+        },
+        card: 'rgb(var(--color-card) / <alpha-value>)',
+        'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
+        'text-secondary': 'rgb(var(--color-text-secondary) / <alpha-value>)',
+        'text-muted': 'rgb(var(--color-text-muted) / <alpha-value>)',
+        border: {
+          DEFAULT: 'rgb(var(--color-border) / <alpha-value>)',
+          strong: 'rgb(var(--color-border-strong) / <alpha-value>)',
+        },
+        scrim: 'rgb(var(--color-scrim) / <alpha-value>)',
+        success: {
+          DEFAULT: 'rgb(var(--color-success) / <alpha-value>)',
+          bg: 'rgb(var(--color-success-bg) / <alpha-value>)',
+        },
+        warning: {
+          DEFAULT: 'rgb(var(--color-warning) / <alpha-value>)',
+          bg: 'rgb(var(--color-warning-bg) / <alpha-value>)',
+        },
+        danger: {
+          DEFAULT: 'rgb(var(--color-danger) / <alpha-value>)',
+          bg: 'rgb(var(--color-danger-bg) / <alpha-value>)',
+        },
+        info: {
+          DEFAULT: 'rgb(var(--color-info) / <alpha-value>)',
+          bg: 'rgb(var(--color-info-bg) / <alpha-value>)',
+        },
+        neutral: 'rgb(var(--color-neutral) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         display: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)',
-        'card-hover': '0 4px 12px -2px rgb(0 0 0 / 0.08), 0 2px 6px -2px rgb(0 0 0 / 0.06)',
-        fab: '0 8px 24px -4px rgb(0 0 0 / 0.25)',
+        card: '0 1px 2px 0 rgb(17 17 17 / 0.04), 0 1px 3px -1px rgb(17 17 17 / 0.05)',
+        'card-hover': '0 8px 24px -8px rgb(17 17 17 / 0.10), 0 2px 6px -2px rgb(17 17 17 / 0.06)',
+        fab: '0 10px 28px -6px rgb(17 17 17 / 0.35)',
+        glass: '0 4px 20px -6px rgb(17 17 17 / 0.10)',
+      },
+      borderRadius: {
+        sm: '0.5rem',
+        md: '0.75rem',
+        lg: '1rem',
+        xl: '1.25rem',
+        '2xl': '1.5rem',
+        '3xl': '2rem',
       },
       animation: {
         'slide-up': 'slideUp 0.25s ease-out',

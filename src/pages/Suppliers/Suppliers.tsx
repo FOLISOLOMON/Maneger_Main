@@ -66,37 +66,37 @@ export function Suppliers() {
             return (
               <Card key={s.id} padding="md" hover onClick={() => setDetailId(s.id)}>
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-plum-50 text-plum-700 flex items-center justify-center flex-shrink-0">
+                  <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center flex-shrink-0">
                     <Truck className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-slate-900 text-sm truncate">{s.supplier_name}</p>
-                      {s.status === 'Archived' && <Badge color="bg-slate-100 text-slate-500">Archived</Badge>}
+                      <p className="font-semibold text-text-primary text-sm truncate">{s.supplier_name}</p>
+                      {s.status === 'Archived' && <Badge color="bg-surface-alt text-text-muted">Archived</Badge>}
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-text-muted mt-0.5">
                       {s.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {s.location}</span>}
                     </p>
-                    {s.phone && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {s.phone}</p>}
+                    {s.phone && <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {s.phone}</p>}
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-slate-900 tabular-nums">{stats.batchCount}</p>
-                    <p className="text-[10px] text-slate-500 uppercase">Batches</p>
+                    <p className="text-sm font-bold text-text-primary tabular-nums">{stats.batchCount}</p>
+                    <p className="text-[10px] text-text-muted uppercase">Batches</p>
                   </div>
                 </div>
                 {stats.batchCount > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-center">
+                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border text-center">
                     <div>
-                      <p className="text-xs font-bold text-slate-900 tabular-nums">{formatMoneyCompact(stats.totalPurchaseCost, currencySymbol)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase">Purchases</p>
+                      <p className="text-xs font-bold text-text-primary tabular-nums">{formatMoneyCompact(stats.totalPurchaseCost, currencySymbol)}</p>
+                      <p className="text-[10px] text-text-muted uppercase">Purchases</p>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-emerald-600 tabular-nums">{formatMoneyCompact(stats.averageProfit, currencySymbol)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase">Avg profit</p>
+                      <p className="text-xs font-bold text-success tabular-nums">{formatMoneyCompact(stats.averageProfit, currencySymbol)}</p>
+                      <p className="text-[10px] text-text-muted uppercase">Avg profit</p>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-900">{stats.lastBatchDate ? formatDate(stats.lastBatchDate, 'MMM yy') : '—'}</p>
-                      <p className="text-[10px] text-slate-500 uppercase">Last batch</p>
+                      <p className="text-xs font-bold text-text-primary">{stats.lastBatchDate ? formatDate(stats.lastBatchDate, 'MMM yy') : '—'}</p>
+                      <p className="text-[10px] text-text-muted uppercase">Last batch</p>
                     </div>
                   </div>
                 )}
@@ -118,34 +118,34 @@ export function Suppliers() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2 text-sm">
               {detailSupplier.phone && (
-                <div className="flex items-center gap-2 text-slate-600"><Phone className="w-4 h-4" /> {detailSupplier.phone}</div>
+                <div className="flex items-center gap-2 text-text-secondary"><Phone className="w-4 h-4" /> {detailSupplier.phone}</div>
               )}
               {detailSupplier.contact_person && (
-                <div className="text-slate-600">Contact: {detailSupplier.contact_person}</div>
+                <div className="text-text-secondary">Contact: {detailSupplier.contact_person}</div>
               )}
             </div>
             {detailSupplier.notes && (
-              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{detailSupplier.notes}</div>
+              <div className="rounded-xl bg-surface-alt p-3 text-sm text-text-secondary">{detailSupplier.notes}</div>
             )}
 
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Batch history ({detailBatches.length})</p>
+              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Batch history ({detailBatches.length})</p>
               {detailBatches.length === 0 ? (
-                <p className="text-sm text-slate-500 py-4 text-center">No batches from this supplier yet.</p>
+                <p className="text-sm text-text-muted py-4 text-center">No batches from this supplier yet.</p>
               ) : (
                 <div className="space-y-2">
                   {detailBatches.slice(0, 8).map((b) => {
                     const meta = BATCH_STATUS_META[b.status];
                     return (
                       <Link key={b.id} to={`/inventory/${b.id}`} onClick={() => setDetailId(null)}>
-                        <div className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 -mx-1 px-1 rounded-lg">
-                          <Package className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        <div className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-surface-alt -mx-1 px-1 rounded-lg">
+                          <Package className="w-4 h-4 text-text-muted flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{b.batch_name}</p>
-                            <p className="text-xs text-slate-500">{b.batch_code} · {formatDate(b.purchase_date)}</p>
+                            <p className="text-sm font-medium text-text-primary truncate">{b.batch_name}</p>
+                            <p className="text-xs text-text-muted">{b.batch_code} · {formatDate(b.purchase_date)}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-semibold tabular-nums text-slate-900">{formatMoney(b.net_profit, currencySymbol)}</p>
+                            <p className="text-sm font-semibold tabular-nums text-text-primary">{formatMoney(b.net_profit, currencySymbol)}</p>
                             <Badge color={meta.color} dot={meta.dot}>{meta.label}</Badge>
                           </div>
                         </div>

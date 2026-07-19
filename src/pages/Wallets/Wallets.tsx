@@ -56,18 +56,18 @@ export function Wallets() {
           const isActive = w.wallet === activeWallet;
           return (
             <button key={w.wallet} onClick={() => setActiveWallet(w.wallet)} className="text-left">
-              <Card padding="md" className={clsx('transition-all', isActive && 'ring-2 ring-plum-400 ring-offset-1')}>
+              <Card padding="md" className={clsx('transition-all', isActive && 'ring-2 ring-accent ring-offset-1')}>
                 <div className="flex items-center gap-3">
                   <div className={clsx('w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0', meta.bg)}>
                     <Icon className={clsx('w-6 h-6', meta.color)} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-700">{meta.label}</p>
-                    <p className="text-2xl font-display font-extrabold text-slate-900 tabular-nums">{formatMoney(w.balance, currencySymbol)}</p>
+                    <p className="text-sm font-semibold text-text-secondary">{meta.label}</p>
+                    <p className="text-2xl font-display font-extrabold text-text-primary tabular-nums">{formatMoney(w.balance, currencySymbol)}</p>
                   </div>
                   <div className="text-right text-xs space-y-0.5 flex-shrink-0">
-                    <p className="text-emerald-600 font-semibold tabular-nums">+{formatMoneyCompact(w.income, currencySymbol)}</p>
-                    <p className="text-red-500 font-semibold tabular-nums">-{formatMoneyCompact(w.outflow, currencySymbol)}</p>
+                    <p className="text-success font-semibold tabular-nums">+{formatMoneyCompact(w.income, currencySymbol)}</p>
+                    <p className="text-danger font-semibold tabular-nums">-{formatMoneyCompact(w.outflow, currencySymbol)}</p>
                   </div>
                 </div>
               </Card>
@@ -78,7 +78,7 @@ export function Wallets() {
 
       {/* Active wallet detail */}
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-display font-bold text-slate-900">{WALLET_META[activeWallet].label} Transactions</h3>
+        <h3 className="font-display font-bold text-text-primary">{WALLET_META[activeWallet].label} Transactions</h3>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setWithdrawOpen(true)}>
             <ArrowDownLeft className="w-4 h-4" /> Withdraw
@@ -103,21 +103,21 @@ export function Wallets() {
             const isOutflow = ['Expense', 'Withdrawal'].includes(t.transaction_type);
             return (
               <Card key={t.id} padding="sm" className="flex items-center gap-3">
-                <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', isOutflow ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600')}>
+                <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', isOutflow ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success')}>
                   {isOutflow ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{t.reason ?? t.transaction_type}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-semibold text-text-primary truncate">{t.reason ?? t.transaction_type}</p>
+                  <p className="text-xs text-text-muted">
                     {t.transaction_code} · {formatRelative(t.created_at)}
                     {t.batch_id && ' · batch allocation'}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className={clsx('text-sm font-bold tabular-nums', isOutflow ? 'text-red-600' : 'text-emerald-600')}>
+                  <p className={clsx('text-sm font-bold tabular-nums', isOutflow ? 'text-danger' : 'text-success')}>
                     {isOutflow ? '-' : '+'}{formatMoney(t.amount, currencySymbol)}
                   </p>
-                  <Badge color="bg-slate-100 text-slate-600">{t.transaction_type}</Badge>
+                  <Badge color="bg-surface-alt text-text-secondary">{t.transaction_type}</Badge>
                 </div>
               </Card>
             );
@@ -239,9 +239,9 @@ function WalletActionModal({ open, onClose, title, subtitle, actionType, wallet,
       }
     >
       <div className="space-y-4">
-        <div className="rounded-xl bg-slate-50 p-3 flex justify-between items-center">
-          <span className="text-sm text-slate-600">Available balance</span>
-          <span className="font-display font-bold text-slate-900 tabular-nums">{formatMoney(balance, currencySymbol)}</span>
+        <div className="rounded-xl bg-surface-alt p-3 flex justify-between items-center">
+          <span className="text-sm text-text-secondary">Available balance</span>
+          <span className="font-display font-bold text-text-primary tabular-nums">{formatMoney(balance, currencySymbol)}</span>
         </div>
         <Field label="Amount" required>
           <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} prefix={currencySymbol} placeholder="0.00" />

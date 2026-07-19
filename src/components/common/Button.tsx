@@ -1,6 +1,6 @@
 // Veloura Manager V2 — Button component
 // Single button with variants. Spec section 7.19 lists Button as a core
-// reusable component.
+// reusable component. Colors flow from the brand design tokens.
 
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { clsx } from 'clsx';
@@ -16,12 +16,12 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-plum-700 text-white hover:bg-plum-800 active:bg-plum-900 shadow-sm',
-  secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300',
-  ghost: 'text-slate-700 hover:bg-slate-100 active:bg-slate-200',
-  danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm',
-  outline: 'border border-slate-300 text-slate-700 hover:bg-slate-50 active:bg-slate-100 bg-white',
-  gold: 'bg-gold-500 text-white hover:bg-gold-600 active:bg-gold-700 shadow-sm',
+  primary: 'bg-action text-white hover:bg-action-light active:bg-action-dark shadow-sm',
+  secondary: 'bg-surface-alt text-text-primary hover:bg-border active:bg-border-strong',
+  ghost: 'text-text-secondary hover:bg-surface-alt active:bg-border',
+  danger: 'bg-danger text-white hover:opacity-90 active:opacity-80 shadow-sm',
+  outline: 'border border-border-strong text-text-primary hover:bg-surface-alt active:bg-border bg-surface',
+  gold: 'bg-accent text-white hover:bg-accent-muted active:opacity-90 shadow-sm',
 };
 
 const sizes: Record<Size, string> = {
@@ -38,7 +38,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled={disabled || loading}
       className={clsx(
         'inline-flex items-center justify-center font-semibold transition-all duration-150 touch-target',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-plum-400 focus-visible:ring-offset-1',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1',
         'disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',
         variants[variant],
         sizes[size],

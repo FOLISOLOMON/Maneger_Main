@@ -64,17 +64,17 @@ export function Customers() {
             return (
               <Card key={c.id} padding="md" hover onClick={() => setDetailId(c.id)}>
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-plum-100 text-plum-700 flex items-center justify-center font-display font-bold text-sm flex-shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-accent/10 text-accent flex items-center justify-center font-display font-bold text-sm flex-shrink-0">
                     {initials(c.customer_name)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-900 text-sm truncate">{c.customer_name}</p>
-                    {c.phone && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {c.phone}</p>}
-                    {c.location && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" /> {c.location}</p>}
+                    <p className="font-semibold text-text-primary text-sm truncate">{c.customer_name}</p>
+                    {c.phone && <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {c.phone}</p>}
+                    {c.location && <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" /> {c.location}</p>}
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoneyCompact(stats.totalSpent, currencySymbol)}</p>
-                    <p className="text-[10px] text-slate-500 uppercase">Lifetime</p>
+                    <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoneyCompact(stats.totalSpent, currencySymbol)}</p>
+                    <p className="text-[10px] text-text-muted uppercase">Lifetime</p>
                   </div>
                 </div>
               </Card>
@@ -94,33 +94,33 @@ export function Customers() {
         {detailCustomer && detailStats && (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-lg font-display font-bold text-slate-900 tabular-nums">{formatMoneyCompact(detailStats.totalSpent, currencySymbol)}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Total spent</p>
+              <div className="rounded-xl bg-surface-alt p-3">
+                <p className="text-lg font-display font-bold text-text-primary tabular-nums">{formatMoneyCompact(detailStats.totalSpent, currencySymbol)}</p>
+                <p className="text-[10px] text-text-muted uppercase tracking-wide">Total spent</p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-lg font-display font-bold text-slate-900 tabular-nums">{detailStats.totalOrders}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Orders</p>
+              <div className="rounded-xl bg-surface-alt p-3">
+                <p className="text-lg font-display font-bold text-text-primary tabular-nums">{detailStats.totalOrders}</p>
+                <p className="text-[10px] text-text-muted uppercase tracking-wide">Orders</p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-lg font-display font-bold text-slate-900 tabular-nums">{formatMoneyCompact(detailStats.averageOrder, currencySymbol)}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Avg order</p>
+              <div className="rounded-xl bg-surface-alt p-3">
+                <p className="text-lg font-display font-bold text-text-primary tabular-nums">{formatMoneyCompact(detailStats.averageOrder, currencySymbol)}</p>
+                <p className="text-[10px] text-text-muted uppercase tracking-wide">Avg order</p>
               </div>
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Recent purchases</p>
+              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Recent purchases</p>
               {detailSales.length === 0 ? (
-                <p className="text-sm text-slate-500 py-4 text-center">No purchases yet.</p>
+                <p className="text-sm text-text-muted py-4 text-center">No purchases yet.</p>
               ) : (
                 <div className="space-y-2">
                   {detailSales.map((s) => (
-                    <div key={s.id} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
+                    <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">{s.product?.product_name ?? 'Product'} × {s.quantity}</p>
-                        <p className="text-xs text-slate-500">{formatRelative(s.sale_date)}</p>
+                        <p className="text-sm font-medium text-text-primary truncate">{s.product?.product_name ?? 'Product'} × {s.quantity}</p>
+                        <p className="text-xs text-text-muted">{formatRelative(s.sale_date)}</p>
                       </div>
-                      <p className="text-sm font-semibold tabular-nums text-slate-900">{formatMoney(s.total_sale, currencySymbol)}</p>
+                      <p className="text-sm font-semibold tabular-nums text-text-primary">{formatMoney(s.total_sale, currencySymbol)}</p>
                     </div>
                   ))}
                 </div>

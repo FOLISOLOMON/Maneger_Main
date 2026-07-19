@@ -24,12 +24,14 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-plum-600 to-plum-800 flex items-center justify-center text-white font-display font-bold text-2xl shadow-lg animate-pulse">
-            V
-          </div>
-          <p className="text-sm text-slate-500 font-medium">Loading Veloura Manager…</p>
+          <img
+            src="/icon-gold.png"
+            alt="Avencia"
+            className="w-12 h-12 rounded-2xl shadow-lg animate-pulse"
+          />
+          <p className="text-sm text-text-secondary font-medium">Loading Avencia Manager…</p>
         </div>
       </div>
     );

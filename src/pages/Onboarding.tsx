@@ -139,16 +139,14 @@ export function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-plum-50 via-slate-50 to-gold-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         {/* Brand header */}
         <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-plum-600 to-plum-800 flex items-center justify-center text-white font-display font-bold text-2xl shadow-lg">
-            V
-          </div>
+          <img src="/icon-gold.png" alt="Avencia" className="w-12 h-12 rounded-2xl object-contain shadow-lg" />
           <div>
-            <h1 className="font-display font-extrabold text-xl text-slate-900">Veloura Manager</h1>
-            <p className="text-xs text-slate-500">Business setup · Phoenix V2</p>
+            <h1 className="font-display font-extrabold text-xl text-text-primary">Avencia Manager</h1>
+            <p className="text-xs text-text-muted">Business setup · Phoenix V2</p>
           </div>
         </div>
 
@@ -158,28 +156,28 @@ export function Onboarding() {
             <div key={i} className="flex items-center flex-1 last:flex-none">
               <div className={clsx(
                 'w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold transition-colors',
-                i < step ? 'bg-emerald-500 text-white' :
-                i === step ? 'bg-plum-700 text-white shadow-md' :
-                'bg-slate-200 text-slate-400',
+                i < step ? 'bg-success text-white' :
+                i === step ? 'bg-accent text-white shadow-md' :
+                'bg-border text-text-muted',
               )}>
                 {i < step ? <Check className="w-5 h-5" /> : <s.icon className="w-4 h-4" />}
               </div>
               {i < steps.length - 1 && (
-                <div className={clsx('flex-1 h-0.5 mx-2 rounded-full transition-colors', i < step ? 'bg-emerald-500' : 'bg-slate-200')} />
+                <div className={clsx('flex-1 h-0.5 mx-2 rounded-full transition-colors', i < step ? 'bg-success' : 'bg-border')} />
               )}
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-3xl shadow-card border border-slate-200/70 p-6">
+        <div className="bg-surface rounded-3xl shadow-card border border-border p-6">
           {step === 0 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="font-display font-bold text-lg text-slate-900">Tell us about your business</h2>
-                <p className="text-sm text-slate-500 mt-0.5">This appears on your dashboard and reports.</p>
+                <h2 className="font-display font-bold text-lg text-text-primary">Tell us about your business</h2>
+                <p className="text-sm text-text-muted mt-0.5">This appears on your dashboard and reports.</p>
               </div>
               <Field label="Business name" required>
-                <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. Veloura Scents" />
+                <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)}                 placeholder="e.g. Avencia Scents" />
               </Field>
               <Field label="Owner name" required>
                 <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Your name" />
@@ -198,8 +196,8 @@ export function Onboarding() {
                 <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Shop location" />
               </Field>
               <div>
-                <p className="text-sm font-semibold text-slate-700 mb-2">Wallet allocation percentages</p>
-                <p className="text-xs text-slate-500 mb-3">How net profit is split when a batch closes. Must total 100%.</p>
+                <p className="text-sm font-semibold text-text-secondary mb-2">Wallet allocation percentages</p>
+                <p className="text-xs text-text-muted mb-3">How net profit is split when a batch closes. Must total 100%.</p>
                 <div className="grid grid-cols-3 gap-3">
                   <Field label="Needs">
                     <Input type="number" value={needsPct} onChange={(e) => setNeedsPct(Number(e.target.value))} prefix="%" />
@@ -211,7 +209,7 @@ export function Onboarding() {
                     <Input type="number" value={growthPct} onChange={(e) => setGrowthPct(Number(e.target.value))} prefix="%" />
                   </Field>
                 </div>
-                <p className={clsx('text-xs font-semibold mt-2', pctTotal === 100 ? 'text-emerald-600' : 'text-red-600')}>
+                <p className={clsx('text-xs font-semibold mt-2', pctTotal === 100 ? 'text-success' : 'text-danger')}>
                   Total: {pctPctTotalLabel(pctTotal)}
                 </p>
               </div>
@@ -224,8 +222,8 @@ export function Onboarding() {
           {step === 1 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="font-display font-bold text-lg text-slate-900">Create your first supplier</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Where you buy your inventory from.</p>
+                <h2 className="font-display font-bold text-lg text-text-primary">Create your first supplier</h2>
+                <p className="text-sm text-text-muted mt-0.5">Where you buy your inventory from.</p>
               </div>
               <Field label="Supplier name" required>
                 <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="e.g. Dubai Imports" />
@@ -255,8 +253,8 @@ export function Onboarding() {
           {step === 2 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="font-display font-bold text-lg text-slate-900">Create your first batch</h2>
-                <p className="text-sm text-slate-500 mt-0.5">An inventory batch is one stock purchase cycle.</p>
+                <h2 className="font-display font-bold text-lg text-text-primary">Create your first batch</h2>
+                <p className="text-sm text-text-muted mt-0.5">An inventory batch is one stock purchase cycle.</p>
               </div>
               <Field label="Batch name" required hint="e.g. Dubai Trip May 2026">
                 <Input value={batchName} onChange={(e) => setBatchName(e.target.value)} placeholder="Name this purchase" />
@@ -280,11 +278,11 @@ export function Onboarding() {
 
           {step === 3 && (
             <div className="text-center py-8 animate-scale-in">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-success-bg text-success flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="w-8 h-8" />
               </div>
-              <h2 className="font-display font-extrabold text-xl text-slate-900">You're all set!</h2>
-              <p className="text-sm text-slate-500 mt-2 max-w-xs mx-auto">
+              <h2 className="font-display font-extrabold text-xl text-text-primary">You're all set!</h2>
+              <p className="text-sm text-text-muted mt-2 max-w-xs mx-auto">
                 Your business is ready. Take me to your dashboard…
               </p>
             </div>

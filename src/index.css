@@ -5,16 +5,77 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Veloura brand tokens — Light (ivory + matte black + metallic gold) */
+    --color-primary: 17 17 17; /* #111111 */
+    --color-primary-light: 43 43 43; /* #2B2B2B */
+    --color-primary-dark: 0 0 0; /* #000000 */
+    --color-action: 17 17 17; /* #111111 */
+    --color-action-light: 43 43 43; /* #2B2B2B */
+    --color-action-dark: 0 0 0; /* #000000 */
+    --color-accent: 201 162 39; /* #C9A227 */
+    --color-accent-light: 230 206 134; /* #E6CE86 */
+    --color-accent-muted: 138 109 27; /* #8A6D1B */
+    --color-background: 248 246 242; /* #F8F6F2 */
+    --color-surface: 255 255 255; /* #FFFFFF */
+    --color-surface-alt: 241 238 232; /* #F1EEE8 */
+    --color-card: 255 255 255; /* #FFFFFF */
+    --color-text-primary: 17 17 17; /* #111111 */
+    --color-text-secondary: 61 61 61; /* #3D3D3D */
+    --color-text-muted: 107 107 107; /* #6B6B6B */
+    --color-border: 231 226 216; /* #E7E2D8 */
+    --color-border-strong: 216 210 198; /* #D8D2C6 */
+    --color-scrim: 17 17 17; /* #111111 */
+    --color-success: 47 107 79; /* #2F6B4F */
+    --color-success-bg: 234 243 238; /* #EAF3EE */
+    --color-warning: 154 106 18; /* #9A6A12 */
+    --color-warning-bg: 246 238 221; /* #F6EEDD */
+    --color-danger: 161 50 43; /* #A1322B */
+    --color-danger-bg: 247 233 231; /* #F7E9E7 */
+    --color-info: 61 107 138; /* #3D6B8A */
+    --color-info-bg: 234 241 246; /* #EAF1F6 */
+    --color-neutral: 100 116 139; /* #64748B */
+  }
+
+  .dark {
+    /* Veloura brand tokens — Dark (near-black + white + brighter gold) */
+    --color-primary: 245 245 245; /* #F5F5F5 */
+    --color-primary-light: 229 229 229; /* #E5E5E5 */
+    --color-primary-dark: 212 212 212; /* #D4D4D4 */
+    --color-action: 201 162 39; /* #C9A227 */
+    --color-action-light: 217 180 65; /* #D9B441 */
+    --color-action-dark: 181 145 47; /* #B5912F */
+    --color-accent: 217 180 65; /* #D9B441 */
+    --color-accent-light: 230 206 134; /* #E6CE86 */
+    --color-accent-muted: 181 145 47; /* #B5912F */
+    --color-background: 14 14 14; /* #0E0E0E */
+    --color-surface: 26 26 26; /* #1A1A1A */
+    --color-surface-alt: 20 20 20; /* #141414 */
+    --color-card: 26 26 26; /* #1A1A1A */
+    --color-text-primary: 245 245 245; /* #F5F5F5 */
+    --color-text-secondary: 161 161 161; /* #A1A1A1 */
+    --color-text-muted: 119 119 119; /* #777777 */
+    --color-border: 42 42 42; /* #2A2A2A */
+    --color-border-strong: 58 58 58; /* #3A3A3A */
+    --color-scrim: 17 17 17; /* #111111 */
+    --color-success: 79 163 122; /* #4FA37A */
+    --color-success-bg: 22 36 29; /* #16241D */
+    --color-warning: 217 167 66; /* #D9A742 */
+    --color-warning-bg: 38 32 15; /* #26200F */
+    --color-danger: 224 122 112; /* #E07A70 */
+    --color-danger-bg: 42 23 21; /* #2A1715 */
+    --color-info: 111 163 199; /* #6FA3C7 */
+    --color-info-bg: 19 33 43; /* #13212B */
+    --color-neutral: 122 117 108; /* #7A756C */
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+    @apply bg-background text-text-primary font-sans antialiased;
     text-rendering: optimizeLegibility;
-  }
-  .dark body {
-    @apply bg-slate-950 text-slate-100;
   }
   * {
     -webkit-tap-highlight-color: transparent;
@@ -31,6 +92,11 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+  /* Glassmorphism surface for headers/overlays where appropriate */
+  .glass {
+    @apply bg-surface/70 backdrop-blur-xl;
+    box-shadow: 0 4px 20px -6px rgb(17 17 17 / 0.10);
   }
 }
 

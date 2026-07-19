@@ -8,14 +8,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['vite.svg'],
+      includeAssets: ['favicon.svg', 'favicon-512.png'],
       manifest: {
-        name: 'Veloura Manager',
-        short_name: 'Veloura',
+        name: 'Avencia Manager',
+        short_name: 'Avencia',
         description:
           'Offline-first perfume business management: inventory, sales, expenses, wallets, profit.',
-        theme_color: '#7e22ce',
-        background_color: '#ffffff',
+        theme_color: '#111111',
+        background_color: '#F8F6F2',
         display: 'standalone',
         start_url: '/',
         scope: '/',
@@ -29,7 +29,7 @@ export default defineConfig({
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/jpg',
+            type: 'image/png',
             purpose: 'any',
           },
           {

@@ -19,15 +19,16 @@ import { useToast } from '../../components/common/Toast';
 import { BATCH_EXPENSE_CATEGORIES, BUSINESS_EXPENSE_CATEGORIES } from '../../constants';
 import { expenseTotal, expensesByCategory } from '../../services/calculations';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { ChartCard, CHART_COLORS } from '../../components/charts/ChartCard';
-
-const PIE_COLORS = [CHART_COLORS.plum, CHART_COLORS.gold, CHART_COLORS.emerald, CHART_COLORS.blue, CHART_COLORS.red, CHART_COLORS.slate];
+import { ChartCard } from '../../components/charts/ChartCard';
+import { chartColors } from '../../theme/designTokens';
 
 type Tab = 'batch' | 'business';
 
 export function Expenses() {
-  const { currencySymbol } = useApp();
-  const { data: expenses, isLoading, isError, refetch } = useExpenses();
+const { currencySymbol, theme } = useApp();
+const { data: expenses, isLoading, isError, refetch } = useExpenses();
+const charts = chartColors(theme);
+const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, charts.danger, charts.neutral];
   const [tab, setTab] = useState<Tab>('batch');
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -62,8 +63,8 @@ export function Expenses() {
         label={tab === 'batch' ? 'Total Batch Expenses' : 'Total Business Expenses'}
         value={formatMoney(total, currencySymbol)}
         hint={`${filtered.length} record${filtered.length === 1 ? '' : 's'}`}
-        iconBg="bg-amber-50"
-        accent="text-amber-600"
+        iconBg="bg-warning-bg"
+        accent="text-warning"
       />
 
       <div className="flex gap-1.5">
@@ -73,7 +74,7 @@ export function Expenses() {
             onClick={() => setTab(t)}
             className={clsx(
               'px-4 py-1.5 rounded-full text-sm font-semibold capitalize transition-colors',
-              tab === t ? 'bg-plum-700 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50',
+              tab === t ? 'bg-action text-white' : 'bg-surface text-text-secondary border border-border hover:bg-surface-alt',
             )}
           >
             {t} Expenses
@@ -91,15 +92,15 @@ export function Expenses() {
                 <Pie data={byCategory.slice(0, 6)} dataKey="total" nameKey="category" cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={2}>
                   {byCategory.slice(0, 6).map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v) => formatMoney(Number(v), currencySymbol)} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                <Tooltip formatter={(v) => formatMoney(Number(v), currencySymbol)}             contentStyle={{ borderRadius: 12, border: `1px solid ${charts.grid}`, fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 space-y-1.5">
               {byCategory.slice(0, 5).map((c, i) => (
                 <div key={c.category} className="flex items-center gap-2 text-xs">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                  <span className="text-slate-700 font-medium flex-1 truncate">{c.category}</span>
-                  <span className="font-semibold tabular-nums text-slate-900">{formatMoney(c.total, currencySymbol)}</span>
+                  <span className="text-text-secondary font-medium flex-1 truncate">{c.category}</span>
+                  <span className="font-semibold tabular-nums text-text-primary">{formatMoney(c.total, currencySymbol)}</span>
                 </div>
               ))}
             </div>
@@ -120,20 +121,20 @@ export function Expenses() {
         <div className="space-y-2.5">
           {filtered.map((e) => (
             <Card key={e.id} padding="sm" className="flex items-center gap-3" hover>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center flex-shrink-0">
                 <Receipt className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{e.expense_name}</p>
-                  <Badge color="bg-slate-100 text-slate-700">{e.category}</Badge>
+                  <p className="text-sm font-semibold text-text-primary truncate">{e.expense_name}</p>
+                  <Badge color="bg-surface-alt text-text-secondary">{e.category}</Badge>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-text-muted mt-0.5">
                   {e.expense_code} · {formatRelative(e.expense_date)}
                   {e.batch && ` · ${e.batch.batch_code}`}
                 </p>
               </div>
-              <p className="text-sm font-bold text-slate-900 tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
+              <p className="text-sm font-bold text-text-primary tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
             </Card>
           ))}
         </div>
@@ -237,7 +238,7 @@ function CreateExpenseModal({ open, onClose, currencySymbol, creating, onCreate 
                 onClick={() => { setType(t); setCategory(''); setBatchId(''); }}
                 className={clsx(
                   'h-11 rounded-xl text-sm font-semibold border transition-colors',
-                  type === t ? 'bg-plum-50 border-plum-500 text-plum-700' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50',
+                  type === t ? 'bg-accent/10 border-accent text-accent' : 'bg-surface border-border text-text-secondary hover:bg-surface-alt',
                 )}
               >
                 {t} Expense
