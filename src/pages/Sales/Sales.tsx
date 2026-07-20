@@ -27,7 +27,9 @@ import { ShoppingCart as CartIcon, TrendingUp } from 'lucide-react';
 
 export function Sales() {
   const { currencySymbol } = useApp();
-  const { data: snapshot, isLoading, isError, refetch } = useSalesSnapshot();
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const { data: snapshot, isLoading, isError, refetch } = useSalesSnapshot({ salesLimit: PAGE_SIZE });
   const sales = snapshot?.sales;
   const batches = snapshot?.batches;
   const products = snapshot?.products;
@@ -39,7 +41,7 @@ export function Sales() {
 
   useFabRegistration({ label: 'Record Sale', icon: Plus, onClick: () => setRecordOpen(true) });
 
-  const filtered = useMemo(() => {
+  const allFiltered = useMemo(() => {
     const all = sales ?? [];
     if (!search.trim()) return all;
     const q = search.toLowerCase();
@@ -49,6 +51,11 @@ export function Sales() {
       s.sale_code.toLowerCase().includes(q),
     );
   }, [sales, search]);
+
+  const visibleSales = allFiltered.slice(0, (page + 1) * PAGE_SIZE);
+  const hasMore = allFiltered.length > visibleSales.length;
+
+  const loadMore = () => setPage((p) => p + 1);
 
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
@@ -75,7 +82,7 @@ export function Sales() {
 
       <SearchBar value={search} onChange={setSearch} placeholder="Search sales by product, customer, code…" />
 
-      {filtered.length === 0 ? (
+      {visibleSales.length === 0 ? (
         <Card padding="lg">
           <EmptyState
             icon={<ShoppingCart className="w-7 h-7" />}
@@ -85,32 +92,39 @@ export function Sales() {
           />
         </Card>
       ) : (
-        <div className="space-y-2.5">
-          {filtered.map((s) => (
-            <Card key={s.id} padding="sm" className="flex items-center gap-3" hover>
-              <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', s.status === 'Voided' ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success')}>
-                <ShoppingCart className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-text-primary truncate">{s.product?.product_name ?? 'Product'}</p>
-                  {s.status === 'Voided' && <Badge color="bg-danger-bg text-danger">Voided</Badge>}
+        <>
+          <div className="space-y-2.5">
+            {visibleSales.map((s) => (
+              <Card key={s.id} padding="sm" className="flex items-center gap-3" hover>
+                <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', s.status === 'Voided' ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success')}>
+                  <ShoppingCart className="w-5 h-5" />
                 </div>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {s.quantity} × {formatMoney(s.unit_price, currencySymbol)} · {s.customer?.customer_name ?? 'Walk-in'} · {formatRelative(s.sale_date)}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <PayBadge method={s.payment_method} />
-                  <span className="text-[11px] text-text-muted">{s.sale_code}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-text-primary truncate">{s.product?.product_name ?? 'Product'}</p>
+                    {s.status === 'Voided' && <Badge color="bg-danger-bg text-danger">Voided</Badge>}
+                  </div>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {s.quantity} × {formatMoney(s.unit_price, currencySymbol)} · {s.customer?.customer_name ?? 'Walk-in'} · {formatRelative(s.sale_date)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <PayBadge method={s.payment_method} />
+                    <span className="text-[11px] text-text-muted">{s.sale_code}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
-                {s.status === 'Completed' && <p className="text-xs text-success font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
-              </div>
-            </Card>
-          ))}
-        </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
+                  {s.status === 'Completed' && <p className="text-xs text-success font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
+                </div>
+              </Card>
+            ))}
+          </div>
+          {hasMore && (
+            <div className="text-center pt-2">
+              <Button variant="outline" onClick={loadMore}>Load more sales</Button>
+            </div>
+          )}
+        </>
       )}
 
       <RecordSaleModal
@@ -125,7 +139,7 @@ export function Sales() {
           try {
             const res = await recordSale.mutateAsync(payload);
             if (res?.success) {
-              toast(`Sale recorded: ${formatMoney(Number(res.data?.total_sale ?? 0), currencySymbol)}`, 'success');
+              toast(`Sale recorded: ${formatMoney(Number(res.data?.sale?.total_sale ?? 0), currencySymbol)}`, 'success');
               setRecordOpen(false);
             } else {
               toast(res?.message ?? 'Failed to record sale', 'error');

@@ -33,7 +33,12 @@ import { format, parseISO, eachDayOfInterval, subDays, isSameDay } from 'date-fn
 
 export function Dashboard() {
   const { currencySymbol, theme } = useApp();
-  const { data: snapshot, isLoading: batchesLoading } = useDashboardSnapshot();
+  const { data: snapshot, isLoading: batchesLoading } = useDashboardSnapshot({
+    salesLimit: 50,
+    expensesLimit: 50,
+    walletTxLimit: 100,
+    notificationsLimit: 20,
+  });
   const charts = chartColors(theme);
   const settings = snapshot?.settings ?? undefined;
   const batches = snapshot?.batches;
@@ -197,7 +202,7 @@ export function Dashboard() {
         ) : (
           <div className="space-y-2.5">
             {activeBatches.map((b) => {
-              const meta = BATCH_STATUS_META[b.status];
+              const meta = BATCH_STATUS_META[b.status] || BATCH_STATUS_META.Draft;
               return (
                 <Link key={b.id} to={`/inventory/${b.id}`}>
                   <Card padding="md" hover className="flex items-center gap-3">

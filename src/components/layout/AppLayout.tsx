@@ -12,7 +12,7 @@ import {
   Bell, Plus, Users, Truck, Receipt, Wallet, Settings, type LucideIcon,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { useNotifications } from '../../hooks/queries';
+import { useNotificationsSnapshot } from '../../hooks/queries';
 import { NAV_ITEMS, MORE_ITEMS } from '../../constants';
 import { logos } from '../../theme/designTokens';
 
@@ -199,7 +199,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
 function Header({ onMore }: { onMore: () => void }) {
   const { settings } = useApp();
-  const { data: notifications } = useNotifications();
+  const { data: snapshot } = useNotificationsSnapshot();
+  const notifications = snapshot?.notifications;
   const unread = (notifications ?? []).filter((n) => !n.read).length;
 
   return (

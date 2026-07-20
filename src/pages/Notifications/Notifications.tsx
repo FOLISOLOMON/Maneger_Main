@@ -2,7 +2,7 @@
 // Spec section 7.17. Grouped by today/yesterday/earlier, with priority
 // colors and mark-read actions.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Bell, BellOff, Check, CheckCheck } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNotificationsSnapshot, useMarkNotificationRead, useMarkAllNotificationsRead } from '../../hooks/queries';
@@ -18,12 +18,14 @@ const PRIORITY_META: Record<string, { color: string; dot: string }> = {
 };
 
 export function Notifications() {
-  const { data: snapshot, isLoading, isError, refetch } = useNotificationsSnapshot();
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const { data: snapshot, isLoading, isError, refetch } = useNotificationsSnapshot({ notificationsLimit: PAGE_SIZE });
   const notifications = snapshot?.notifications;
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  const grouped = useMemo(() => {
+  const allGrouped = useMemo(() => {
     const all = notifications ?? [];
     const today: typeof all = [];
     const yesterday: typeof all = [];
@@ -39,15 +41,25 @@ export function Notifications() {
     return { today, yesterday, earlier };
   }, [notifications]);
 
+  const visibleToday = allGrouped.today.slice(0, (page + 1) * PAGE_SIZE);
+  const visibleYesterday = allGrouped.yesterday.slice(0, (page + 1) * PAGE_SIZE);
+  const visibleEarlier = allGrouped.earlier.slice(0, (page + 1) * PAGE_SIZE);
+
+  const hasMore = allGrouped.today.length > visibleToday.length ||
+                  allGrouped.yesterday.length > visibleYesterday.length ||
+                  allGrouped.earlier.length > visibleEarlier.length;
+
+  const loadMore = () => setPage((p) => p + 1);
+
   const unread = (notifications ?? []).filter((n) => !n.read).length;
 
   if (isLoading) return <LoadingState rows={4} />;
   if (isError) return <ErrorState message="Couldn't load notifications" onRetry={() => refetch()} />;
 
   const groups = [
-    { label: 'Today', items: grouped.today },
-    { label: 'Yesterday', items: grouped.yesterday },
-    { label: 'Earlier', items: grouped.earlier },
+    { label: 'Today', items: visibleToday },
+    { label: 'Yesterday', items: visibleYesterday },
+    { label: 'Earlier', items: visibleEarlier },
   ].filter((g) => g.items.length > 0);
 
   const renderItem = (n: Notification) => {
@@ -100,16 +112,23 @@ export function Notifications() {
           />
         </Card>
       ) : (
-        <div className="space-y-5">
-          {groups.map((g) => (
-            <div key={g.label}>
-              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">{g.label}</p>
-              <div className="space-y-2">
-                {g.items.map(renderItem)}
+        <>
+          <div className="space-y-5">
+            {groups.map((g) => (
+              <div key={g.label}>
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">{g.label}</p>
+                <div className="space-y-2">
+                  {g.items.map(renderItem)}
+                </div>
               </div>
+            ))}
+          </div>
+          {hasMore && (
+            <div className="text-center pt-2">
+              <Button variant="outline" onClick={loadMore}>Load more notifications</Button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

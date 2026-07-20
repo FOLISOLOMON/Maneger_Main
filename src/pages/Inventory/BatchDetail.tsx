@@ -70,7 +70,7 @@ export function BatchDetail() {
   if (isLoading) return <LoadingState rows={4} />;
   if (isError || !batch) return <ErrorState message="Batch not found" onRetry={() => refetch()} />;
 
-  const meta = BATCH_STATUS_META[batch.status];
+  const meta = BATCH_STATUS_META[batch.status] || BATCH_STATUS_META.Draft;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -316,22 +316,24 @@ export function BatchDetail() {
       )}
 
       {/* Add product modal */}
-      <AddProductModal
-        open={addProductOpen}
-        onClose={() => setAddProductOpen(false)}
-        currencySymbol={currencySymbol}
-        creating={createProduct.isPending}
-        onCreate={async (payload) => {
-          try {
-            await createProduct.mutateAsync({ ...payload, batch_id: id! });
-            toast('Product added', 'success');
-            setAddProductOpen(false);
-          } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : 'Failed to add product';
-            toast(message, 'error');
-          }
-        }}
-      />
+      {!isClosed && (
+        <AddProductModal
+          open={addProductOpen}
+          onClose={() => setAddProductOpen(false)}
+          currencySymbol={currencySymbol}
+          creating={createProduct.isPending}
+          onCreate={async (payload) => {
+            try {
+              await createProduct.mutateAsync({ ...payload, batch_id: id! });
+              toast('Product added', 'success');
+              setAddProductOpen(false);
+            } catch (e: unknown) {
+              const message = e instanceof Error ? e.message : 'Failed to add product';
+              toast(message, 'error');
+            }
+          }}
+        />
+      )}
 
       {/* Close batch confirm */}
       <ConfirmDialog

@@ -24,14 +24,10 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <img
-            src="/icon-gold.png"
-            alt="Avencia"
-            className="w-12 h-12 rounded-2xl shadow-lg animate-pulse"
-          />
-          <p className="text-sm text-text-secondary font-medium">Loading Avencia Manager…</p>
+          <img src="/icon-gold.png" alt="Avencia" className="w-12 h-12 rounded-2xl object-contain animate-pulse" />
+          <p className="text-sm text-text-muted font-medium">Loading…</p>
         </div>
       </div>
     );

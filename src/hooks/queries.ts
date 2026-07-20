@@ -123,9 +123,15 @@ export function useCreateBatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.createBatch,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
+    onSuccess: (data) => {
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return { ...old, batches: [data, ...old.batches] };
+      });
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return { ...old, batches: [data, ...old.batches] };
+      });
     },
   });
 }
@@ -135,9 +141,20 @@ export function useUpdateBatch() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<InventoryBatch> }) => api.updateBatch(id, patch),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
-      if (data.id) qc.invalidateQueries({ queryKey: qk.batchSnapshot(data.id) });
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return { ...old, batches: old.batches.map((b: any) => b.id === data.id ? { ...b, ...data } : b) };
+      });
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return { ...old, batches: old.batches.map((b: any) => b.id === data.id ? { ...b, ...data } : b) };
+      });
+      if (data.id) {
+        qc.setQueryData(qk.batchSnapshot(data.id), (old: any) => {
+          if (!old) return old;
+          return { ...old, batch: { ...old.batch, ...data } };
+        });
+      }
     },
   });
 }
@@ -146,9 +163,25 @@ export function useCloseBatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.closeBatch,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
+    onSuccess: (result) => {
+      const batch = result.data?.batch;
+      if (!batch) return;
+
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return { ...old, batches: old.batches.map((b: any) => b.id === batch.id ? batch : b) };
+      });
+
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return { ...old, batches: old.batches.map((b: any) => b.id === batch.id ? batch : b) };
+      });
+
+      qc.setQueryData(qk.batchSnapshot(batch.id), (old: any) => {
+        if (!old) return old;
+        return { ...old, batch: batch };
+      });
+
       qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
     },
@@ -173,10 +206,32 @@ export function useCreateProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.createProduct,
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
-      if (variables.batch_id) qc.invalidateQueries({ queryKey: qk.batchSnapshot(variables.batch_id) });
+    onSuccess: (data) => {
+      const { product, batch } = data;
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          products: [product, ...old.products],
+          batches: old.batches.map((b: any) => b.id === batch.id ? batch : b),
+        };
+      });
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          products: [product, ...old.products],
+          batches: old.batches.map((b: any) => b.id === batch.id ? batch : b),
+        };
+      });
+      qc.setQueryData(qk.batchSnapshot(product.batch_id), (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          products: [product, ...old.products],
+          batch: batch,
+        };
+      });
     },
   });
 }
@@ -186,10 +241,19 @@ export function useUpdateProduct() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<Product> }) => api.updateProduct(id, patch),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return { ...old, products: old.products.map((p: any) => p.id === data.id ? { ...p, ...data } : p) };
+      });
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return { ...old, products: old.products.map((p: any) => p.id === data.id ? { ...p, ...data } : p) };
+      });
       if (data.batch_id) {
-        qc.invalidateQueries({ queryKey: qk.batchSnapshot(data.batch_id) });
+        qc.setQueryData(qk.batchSnapshot(data.batch_id), (old: any) => {
+          if (!old) return old;
+          return { ...old, products: old.products.map((p: any) => p.id === data.id ? { ...p, ...data } : p) };
+        });
       }
     },
   });
@@ -197,18 +261,18 @@ export function useUpdateProduct() {
 
 // ---------- Sales ----------
 
-export function useSales(limit?: number) {
+export function useSales(limit?: number, offset: number = 0) {
   return useQuery({
-    queryKey: limit ? [...qk.sales, 'limited', limit] : qk.sales,
-    queryFn: () => api.fetchSales(limit),
+    queryKey: limit ? [...qk.sales, 'limited', limit, offset] : qk.sales,
+    queryFn: () => api.fetchSales(limit, offset),
     staleTime: 10_000,
   });
 }
 
-export function useBatchSales(batchId: string | undefined) {
+export function useBatchSales(batchId: string | undefined, limit?: number) {
   return useQuery({
-    queryKey: batchId ? qk.batchSales(batchId) : ['batch-sales', 'missing'],
-    queryFn: () => api.fetchSalesByBatch(batchId!),
+    queryKey: batchId ? [...qk.batchSales(batchId), limit].filter(Boolean) as string[] : ['batch-sales', 'missing'],
+    queryFn: () => api.fetchSalesByBatch(batchId!, limit),
     enabled: !!batchId,
   });
 }
@@ -225,11 +289,63 @@ export function useRecordSale() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.recordSale,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
-      qc.invalidateQueries({ queryKey: qk.salesSnapshot });
-      qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
+    onSuccess: (result) => {
+      const sale = result.data?.sale;
+      const batch = result.data?.batch;
+      if (!sale) return;
+
+      qc.setQueryData(qk.salesSnapshot, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          sales: [sale, ...old.sales],
+          products: old.products.map((p: any) =>
+            p.id === sale.product?.id ? { ...p, current_stock: Math.max((p.current_stock || 0) - sale.quantity, 0) } : p
+          ),
+          batches: old.batches.map((b: any) =>
+            b.id === sale.batch?.id ? { ...b, remaining_stock: Math.max((b.remaining_stock || 0) - sale.quantity, 0) } : b
+          ),
+        };
+      });
+
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          sales: [sale, ...old.sales],
+          products: old.products.map((p: any) =>
+            p.id === sale.product?.id ? { ...p, current_stock: Math.max((p.current_stock || 0) - sale.quantity, 0) } : p
+          ),
+          batches: old.batches.map((b: any) =>
+            b.id === sale.batch?.id ? { ...b, remaining_stock: Math.max((b.remaining_stock || 0) - sale.quantity, 0) } : b
+          ),
+        };
+      });
+
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          batches: old.batches.map((b: any) =>
+            b.id === sale.batch?.id ? { ...b, remaining_stock: Math.max((b.remaining_stock || 0) - sale.quantity, 0) } : b
+          ),
+        };
+      });
+
+      if (batch && sale.batch?.id) {
+        qc.setQueryData(qk.batchSnapshot(sale.batch.id), (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            sales: [sale, ...old.sales],
+            batch: batch,
+            products: old.products.map((p: any) =>
+              p.id === sale.product?.id ? { ...p, current_stock: Math.max((p.current_stock || 0) - sale.quantity, 0) } : p
+            ),
+          };
+        });
+      }
+
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
     },
   });
@@ -239,24 +355,82 @@ export function useVoidSale() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.voidSale,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
-      qc.invalidateQueries({ queryKey: qk.salesSnapshot });
+    onSuccess: (result) => {
+      const sale = result.data?.sale;
+      const batch = result.data?.batch;
+      if (!sale) return;
+
+      qc.setQueryData(qk.salesSnapshot, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          sales: old.sales.map((s: any) => s.id === sale.id ? sale : s),
+          products: old.products.map((p: any) =>
+            p.id === sale.product?.id ? { ...p, current_stock: (p.current_stock || 0) + sale.quantity } : p
+          ),
+          batches: old.batches.map((b: any) =>
+            b.id === sale.batch?.id ? { ...b, remaining_stock: (b.remaining_stock || 0) + sale.quantity } : b
+          ),
+        };
+      });
+
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          sales: old.sales.map((s: any) => s.id === sale.id ? sale : s),
+          products: old.products.map((p: any) =>
+            p.id === sale.product?.id ? { ...p, current_stock: (p.current_stock || 0) + sale.quantity } : p
+          ),
+          batches: old.batches.map((b: any) =>
+            b.id === sale.batch?.id ? { ...b, remaining_stock: (b.remaining_stock || 0) + sale.quantity } : b
+          ),
+        };
+      });
+
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          batches: old.batches.map((b: any) =>
+            b.id === sale.batch?.id ? { ...b, remaining_stock: (b.remaining_stock || 0) + sale.quantity } : b
+          ),
+        };
+      });
+
+      if (batch && sale.batch?.id) {
+        qc.setQueryData(qk.batchSnapshot(sale.batch.id), (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            sales: old.sales.map((s: any) => s.id === sale.id ? sale : s),
+            batch: batch,
+            products: old.products.map((p: any) =>
+              p.id === sale.product?.id ? { ...p, current_stock: (p.current_stock || 0) + sale.quantity } : p
+            ),
+          };
+        });
+      }
+
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
     },
   });
 }
 
 // ---------- Expenses ----------
 
-export function useExpenses() {
-  return useQuery({ queryKey: qk.expenses, queryFn: api.fetchExpenses, staleTime: 15_000 });
+export function useExpenses(limit?: number, offset: number = 0) {
+  return useQuery({
+    queryKey: limit ? [...qk.expenses, 'limited', limit, offset] : qk.expenses,
+    queryFn: () => api.fetchExpenses(limit, offset),
+    staleTime: 15_000,
+  });
 }
 
-export function useBatchExpenses(batchId: string | undefined) {
+export function useBatchExpenses(batchId: string | undefined, limit?: number) {
   return useQuery({
-    queryKey: batchId ? qk.batchExpenses(batchId) : ['batch-expenses', 'missing'],
-    queryFn: () => api.fetchExpensesByBatch(batchId!),
+    queryKey: batchId ? [...qk.batchExpenses(batchId), limit].filter(Boolean) as string[] : ['batch-expenses', 'missing'],
+    queryFn: () => api.fetchExpensesByBatch(batchId!, limit),
     enabled: !!batchId,
   });
 }
@@ -265,29 +439,59 @@ export function useCreateExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: Parameters<typeof api.createExpense>[0]) => api.createExpense(input),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: qk.dashboard });
-      qc.invalidateQueries({ queryKey: qk.inventory });
+    onSuccess: (data, variables) => {
+      qc.setQueryData(qk.dashboard, (old: any) => {
+        if (!old) return old;
+        return { ...old, expenses: [data, ...old.expenses] };
+      });
+
+      qc.setQueryData(qk.inventory, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          batches: old.batches.map((b: any) =>
+            b.id === variables.batch_id ? { ...b, remaining_stock: Math.max((b.remaining_stock || 0) - Number(variables.amount || 0), 0) } : b
+          ),
+        };
+      });
+
+      if (variables.batch_id) {
+        qc.setQueryData(qk.batchSnapshot(variables.batch_id), (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            expenses: [data, ...old.expenses],
+            batch: old.batch ? { ...old.batch, remaining_stock: Math.max((old.batch.remaining_stock || 0) - Number(variables.amount || 0), 0) } : old.batch,
+          };
+        });
+      }
+
       qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
-      if (variables.batch_id) {
-        qc.invalidateQueries({ queryKey: qk.batchSnapshot(variables.batch_id) });
-      }
     },
   });
 }
 
 // ---------- Wallets ----------
 
-export function useWalletTransactions() {
-  return useQuery({ queryKey: qk.walletTx, queryFn: api.fetchWalletTransactions, staleTime: 10_000 });
+export function useWalletTransactions(limit?: number, offset: number = 0) {
+  return useQuery({
+    queryKey: limit ? [...qk.walletTx, 'limited', limit, offset] : qk.walletTx,
+    queryFn: () => api.fetchWalletTransactions(limit, offset),
+    staleTime: 10_000,
+  });
 }
 
 export function useCreateWalletTransaction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.createWalletTransaction,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.walletTx }),
+    onSuccess: (data) => {
+      qc.setQueryData(qk.walletTx, (old: any) => {
+        if (!old) return old;
+        return [data, ...old];
+      });
+    },
   });
 }
 
@@ -309,7 +513,12 @@ export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.createCustomer,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.customers }),
+    onSuccess: (data) => {
+      qc.setQueryData(qk.customers, (old: any) => {
+        if (!old) return old;
+        return [data, ...old];
+      });
+    },
   });
 }
 
@@ -325,15 +534,51 @@ export function useUpdateCustomer() {
 
 // ---------- Notifications ----------
 
-export function useNotifications() {
-  return useQuery({ queryKey: qk.notifications, queryFn: api.fetchNotifications, staleTime: 15_000 });
+export function useNotifications(limit?: number, offset: number = 0) {
+  return useQuery({
+    queryKey: limit ? [...qk.notifications, 'limited', limit, offset] : qk.notifications,
+    queryFn: () => api.fetchNotifications(limit, offset),
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
 }
 
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.markNotificationRead,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.notificationsSnapshot }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: qk.notificationsSnapshot });
+      await qc.cancelQueries({ queryKey: qk.notifications });
+
+      const previousSnapshot = qc.getQueryData(qk.notificationsSnapshot);
+      const previousNotifications = qc.getQueryData(qk.notifications);
+
+      qc.setQueryData(qk.notificationsSnapshot, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          notifications: old.notifications.map((n: any) => n.id === id ? { ...n, read: true } : n),
+        };
+      });
+      qc.setQueryData(qk.notifications, (old: any) => {
+        if (!old) return old;
+        return old.map((n: any) => n.id === id ? { ...n, read: true } : n);
+      });
+
+      return { previousSnapshot, previousNotifications };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx) {
+        if (ctx.previousSnapshot) qc.setQueryData(qk.notificationsSnapshot, ctx.previousSnapshot);
+        if (ctx.previousNotifications) qc.setQueryData(qk.notifications, ctx.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.notifications });
+    },
   });
 }
 
@@ -341,7 +586,37 @@ export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.markAllNotificationsRead,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.notificationsSnapshot }),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: qk.notificationsSnapshot });
+      await qc.cancelQueries({ queryKey: qk.notifications });
+
+      const previousSnapshot = qc.getQueryData(qk.notificationsSnapshot);
+      const previousNotifications = qc.getQueryData(qk.notifications);
+
+      qc.setQueryData(qk.notificationsSnapshot, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          notifications: old.notifications.map((n: any) => ({ ...n, read: true })),
+        };
+      });
+      qc.setQueryData(qk.notifications, (old: any) => {
+        if (!old) return old;
+        return old.map((n: any) => ({ ...n, read: true }));
+      });
+
+      return { previousSnapshot, previousNotifications };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx) {
+        if (ctx.previousSnapshot) qc.setQueryData(qk.notificationsSnapshot, ctx.previousSnapshot);
+        if (ctx.previousNotifications) qc.setQueryData(qk.notifications, ctx.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.notifications });
+    },
   });
 }
 
@@ -357,10 +632,15 @@ export function useActivityLogs(limit: number = 50) {
 
 // ---------- Batched snapshots (one HTTP round-trip per page) ----------
 
-export function useDashboardSnapshot() {
+export function useDashboardSnapshot(options?: {
+  salesLimit?: number;
+  expensesLimit?: number;
+  walletTxLimit?: number;
+  notificationsLimit?: number;
+}) {
   return useQuery({
-    queryKey: qk.dashboard,
-    queryFn: api.fetchDashboardSnapshot,
+    queryKey: options ? [...qk.dashboard, options] : qk.dashboard,
+    queryFn: () => api.fetchDashboardSnapshot(options),
     staleTime: 15_000,
   });
 }
@@ -373,35 +653,42 @@ export function useInventorySnapshot() {
   });
 }
 
-export function useBatchSnapshot(id: string | undefined) {
+export function useBatchSnapshot(id: string | undefined, options?: {
+  salesLimit?: number;
+  expensesLimit?: number;
+  walletTxLimit?: number;
+}) {
   return useQuery({
-    queryKey: id ? qk.batchSnapshot(id) : ['batch-snapshot', 'missing'],
-    queryFn: () => api.fetchBatchSnapshot(id!),
+    queryKey: id ? [...qk.batchSnapshot(id), options].filter(Boolean) as string[] : ['batch-snapshot', 'missing'],
+    queryFn: () => api.fetchBatchSnapshot(id!, options),
     enabled: !!id,
     staleTime: 10_000,
   });
 }
 
-export function useSalesSnapshot() {
+export function useSalesSnapshot(options?: { salesLimit?: number }) {
   return useQuery({
-    queryKey: qk.salesSnapshot,
-    queryFn: api.fetchSalesSnapshot,
+    queryKey: options ? [...qk.salesSnapshot, options] : qk.salesSnapshot,
+    queryFn: () => api.fetchSalesSnapshot(options),
     staleTime: 10_000,
   });
 }
 
-export function useWalletsSnapshot() {
+export function useWalletsSnapshot(options?: { walletTxLimit?: number }) {
   return useQuery({
-    queryKey: qk.walletsSnapshot,
-    queryFn: api.fetchWalletsSnapshot,
+    queryKey: options ? [...qk.walletsSnapshot, options] : qk.walletsSnapshot,
+    queryFn: () => api.fetchWalletsSnapshot(options),
     staleTime: 10_000,
   });
 }
 
-export function useNotificationsSnapshot() {
+export function useNotificationsSnapshot(options?: { notificationsLimit?: number }) {
   return useQuery({
-    queryKey: qk.notificationsSnapshot,
-    queryFn: api.fetchNotificationsSnapshot,
+    queryKey: options ? [...qk.notificationsSnapshot, options] : qk.notificationsSnapshot,
+    queryFn: () => api.fetchNotificationsSnapshot(options),
     staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 10_000,
   });
 }

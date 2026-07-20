@@ -101,7 +101,7 @@ export function InventoryList() {
       ) : (
         <div className="space-y-3">
           {filtered.map((b) => {
-            const meta = BATCH_STATUS_META[b.status];
+            const meta = BATCH_STATUS_META[b.status] || BATCH_STATUS_META.Draft;
             return (
               <Link key={b.id} to={`/inventory/${b.id}`}>
                 <Card padding="md" hover>

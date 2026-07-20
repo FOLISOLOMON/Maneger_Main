@@ -135,7 +135,7 @@ export function Suppliers() {
               ) : (
                 <div className="space-y-2">
                   {detailBatches.slice(0, 8).map((b) => {
-                    const meta = BATCH_STATUS_META[b.status];
+                    const meta = BATCH_STATUS_META[b.status] || BATCH_STATUS_META.Draft;
                     return (
                       <Link key={b.id} to={`/inventory/${b.id}`} onClick={() => setDetailId(null)}>
                         <div className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-surface-alt -mx-1 px-1 rounded-lg">

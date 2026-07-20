@@ -11,7 +11,6 @@ import {
   sheetsUpdate,
   sheetsAction,
 } from '../lib/sheets';
-import { totalBatchCost } from './calculations';
 import type {
   ActivityLog,
   Customer,
@@ -115,20 +114,7 @@ export async function createBatch(input: {
   other_costs: number;
   notes?: string | null;
 }): Promise<InventoryBatch> {
-  const total = totalBatchCost(input);
-  const status = total > 0 ? 'Purchased' : 'Draft';
-
-  const batch = (await sheetsCreate('InventoryBatches', {
-    ...input,
-    total_batch_cost: total,
-    status,
-    completion_percentage: 0,
-    remaining_stock: 0,
-    gross_revenue: 0,
-    gross_profit: 0,
-    net_profit: 0,
-    roi: 0,
-  })) as InventoryBatch;
+  const batch = (await sheetsAction('createBatchAction', { payload: input })) as InventoryBatch;
 
   await logActivity('Batch Created', 'Inventory', batch.id, `Created batch ${batch.batch_code}`);
   return batch;
@@ -163,18 +149,11 @@ export async function createProduct(input: {
   reorder_level?: number;
   description?: string | null;
   image_url?: string | null;
-}): Promise<Product> {
-  const product = (await sheetsCreate('Products', {
-    ...input,
-    current_stock: input.initial_stock,
-    reorder_level: input.reorder_level ?? 0,
-    status: 'Active',
-  })) as Product;
+}): Promise<{ product: Product; batch: InventoryBatch }> {
+  const result = (await sheetsAction('createProductAction', { payload: input })) as { product: Product; batch: InventoryBatch };
 
-  await sheetsAction('recomputeBatch', { batchId: input.batch_id });
-
-  await logActivity('Product Added', 'Inventory', product.id, `Added product ${product.product_name}`);
-  return product;
+  await logActivity('Product Added', 'Inventory', result.product.id, `Added product ${result.product.product_name}`);
+  return result;
 }
 
 export async function updateProduct(id: string, patch: Partial<Product>): Promise<Product> {
@@ -193,7 +172,7 @@ export async function recordSale(input: {
   payment_method: string;
   notes?: string | null;
   sale_date?: string;
-}): Promise<{ success: boolean; message: string; data?: ApiRecord }> {
+}): Promise<{ success: boolean; message: string; data?: { sale: SaleWithRelations; batch: InventoryBatch } }> {
   return (await sheetsAction('recordSale', {
     payload: {
       ...input,
@@ -201,20 +180,23 @@ export async function recordSale(input: {
       discount_type: input.discount_type ?? 'Amount',
       sale_date: input.sale_date ?? new Date().toISOString(),
     },
-  })) as { success: boolean; message: string; data?: ApiRecord };
+  })) as { success: boolean; message: string; data?: { sale: SaleWithRelations; batch: InventoryBatch } };
 }
 
-export async function voidSale(saleId: string): Promise<{ success: boolean; message: string }> {
-  return (await sheetsAction('voidSale', { saleId })) as { success: boolean; message: string };
+export async function voidSale(saleId: string): Promise<{ success: boolean; message: string; data?: { sale: SaleWithRelations; batch: InventoryBatch } }> {
+  return (await sheetsAction('voidSale', { saleId })) as { success: boolean; message: string; data?: { sale: SaleWithRelations; batch: InventoryBatch } };
 }
 
-export async function fetchSales(limit?: number): Promise<SaleWithRelations[]> {
+export async function fetchSales(limit?: number, offset: number = 0): Promise<SaleWithRelations[]> {
   const sales = asArray<SaleWithRelations>(await sheetsAction('listSales'));
-  return limit ? sales.slice(0, limit) : sales;
+  const start = offset || 0;
+  const end = limit ? start + limit : sales.length;
+  return sales.slice(start, end);
 }
 
-export async function fetchSalesByBatch(batchId: string): Promise<SaleWithRelations[]> {
-  return asArray<SaleWithRelations>(await sheetsAction('listSalesByBatch', { batchId }));
+export async function fetchSalesByBatch(batchId: string, limit?: number): Promise<SaleWithRelations[]> {
+  const sales = asArray<SaleWithRelations>(await sheetsAction('listSalesByBatch', { batchId }));
+  return limit ? sales.slice(0, limit) : sales;
 }
 
 export async function fetchSalesByCustomer(customerId: string): Promise<SaleWithRelations[]> {
@@ -223,12 +205,16 @@ export async function fetchSalesByCustomer(customerId: string): Promise<SaleWith
 
 // ---------- Expenses ----------
 
-export async function fetchExpenses(): Promise<ExpenseWithBatch[]> {
-  return asArray<ExpenseWithBatch>(await sheetsAction('listExpenses'));
+export async function fetchExpenses(limit?: number, offset: number = 0): Promise<ExpenseWithBatch[]> {
+  const expenses = asArray<ExpenseWithBatch>(await sheetsAction('listExpenses'));
+  const start = offset || 0;
+  const end = limit ? start + limit : expenses.length;
+  return expenses.slice(start, end);
 }
 
-export async function fetchExpensesByBatch(batchId: string): Promise<Expense[]> {
-  return asArray<Expense>(await sheetsAction('listExpensesByBatch', { batchId }));
+export async function fetchExpensesByBatch(batchId: string, limit?: number): Promise<Expense[]> {
+  const expenses = asArray<Expense>(await sheetsAction('listExpensesByBatch', { batchId }));
+  return limit ? expenses.slice(0, limit) : expenses;
 }
 
 export async function createExpense(input: {
@@ -245,8 +231,11 @@ export async function createExpense(input: {
 
 // ---------- Wallets ----------
 
-export async function fetchWalletTransactions(): Promise<WalletTransaction[]> {
-  return asArray<WalletTransaction>(await sheetsAction('listWalletTransactions'));
+export async function fetchWalletTransactions(limit?: number, offset: number = 0): Promise<WalletTransaction[]> {
+  const tx = asArray<WalletTransaction>(await sheetsAction('listWalletTransactions'));
+  const start = offset || 0;
+  const end = limit ? start + limit : tx.length;
+  return tx.slice(start, end);
 }
 
 export async function fetchWalletTransactionsByWallet(wallet: WalletName): Promise<WalletTransaction[]> {
@@ -265,8 +254,8 @@ export async function createWalletTransaction(input: {
   return (await sheetsCreate('WalletTransactions', input)) as WalletTransaction;
 }
 
-export async function closeBatch(batchId: string): Promise<{ success: boolean; message: string; data?: ApiRecord }> {
-  return (await sheetsAction('closeBatch', { batchId })) as { success: boolean; message: string; data?: ApiRecord };
+export async function closeBatch(batchId: string): Promise<{ success: boolean; message: string; data?: { batch: InventoryBatch; needs: number; savings: number; growth: number } }> {
+  return (await sheetsAction('closeBatch', { batchId })) as { success: boolean; message: string; data?: { batch: InventoryBatch; needs: number; savings: number; growth: number } };
 }
 
 // ---------- Customers ----------
@@ -302,19 +291,19 @@ export async function updateCustomer(id: string, patch: Partial<Customer>): Prom
 
 // ---------- Notifications ----------
 
-export async function fetchNotifications(): Promise<Notification[]> {
-  return asArray<Notification>(await sheetsList('Notifications'));
+export async function fetchNotifications(limit?: number, offset: number = 0): Promise<Notification[]> {
+  const notifications = asArray<Notification>(await sheetsAction('listNotifications'));
+  const start = offset || 0;
+  const end = limit ? start + limit : notifications.length;
+  return notifications.slice(start, end);
 }
 
-export async function markNotificationRead(id: string): Promise<void> {
-  await sheetsUpdate('Notifications', id, { read: true });
+export async function markNotificationRead(id: string): Promise<{ success: boolean }> {
+  return (await sheetsAction('markNotificationRead', { id })) as { success: boolean };
 }
 
-export async function markAllNotificationsRead(): Promise<void> {
-  const all = asArray<Notification>(await sheetsList('Notifications'));
-  await Promise.all(
-    all.filter((n) => !n.read).map((n) => sheetsUpdate('Notifications', n.id, { read: true })),
-  );
+export async function markAllNotificationsRead(): Promise<{ success: boolean; count: number }> {
+  return (await sheetsAction('markAllNotificationsRead')) as { success: boolean; count: number };
 }
 
 // ---------- Activity logs ----------
@@ -376,28 +365,37 @@ export interface NotificationsSnapshot {
   notifications: Notification[];
 }
 
-export async function fetchDashboardSnapshot(): Promise<DashboardSnapshot> {
-  return (await sheetsAction('getDashboardSnapshot')) as DashboardSnapshot;
+export async function fetchDashboardSnapshot(options?: {
+  salesLimit?: number;
+  expensesLimit?: number;
+  walletTxLimit?: number;
+  notificationsLimit?: number;
+}): Promise<DashboardSnapshot> {
+  return (await sheetsAction('getDashboardSnapshot', options || {})) as DashboardSnapshot;
 }
 
 export async function fetchInventorySnapshot(): Promise<InventorySnapshot> {
   return (await sheetsAction('getInventorySnapshot')) as InventorySnapshot;
 }
 
-export async function fetchBatchSnapshot(id: string): Promise<BatchSnapshot> {
-  return (await sheetsAction('getBatchSnapshot', { id })) as BatchSnapshot;
+export async function fetchBatchSnapshot(id: string, options?: {
+  salesLimit?: number;
+  expensesLimit?: number;
+  walletTxLimit?: number;
+}): Promise<BatchSnapshot> {
+  return (await sheetsAction('getBatchSnapshot', { id, ...options })) as BatchSnapshot;
 }
 
-export async function fetchSalesSnapshot(): Promise<SalesSnapshot> {
-  return (await sheetsAction('getSalesSnapshot')) as SalesSnapshot;
+export async function fetchSalesSnapshot(options?: { salesLimit?: number }): Promise<SalesSnapshot> {
+  return (await sheetsAction('getSalesSnapshot', options || {})) as SalesSnapshot;
 }
 
-export async function fetchWalletsSnapshot(): Promise<WalletsSnapshot> {
-  return (await sheetsAction('getWalletsSnapshot')) as WalletsSnapshot;
+export async function fetchWalletsSnapshot(options?: { walletTxLimit?: number }): Promise<WalletsSnapshot> {
+  return (await sheetsAction('getWalletsSnapshot', options || {})) as WalletsSnapshot;
 }
 
-export async function fetchNotificationsSnapshot(): Promise<NotificationsSnapshot> {
-  return (await sheetsAction('getNotificationsSnapshot')) as NotificationsSnapshot;
+export async function fetchNotificationsSnapshot(options?: { notificationsLimit?: number }): Promise<NotificationsSnapshot> {
+  return (await sheetsAction('getNotificationsSnapshot', options || {})) as NotificationsSnapshot;
 }
 
 // Fire several actions in a single round-trip. Returns an array of each

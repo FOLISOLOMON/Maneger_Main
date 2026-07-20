@@ -23,7 +23,9 @@ const WALLET_ICONS = { Needs: Wallet, Savings: PiggyBank, Growth: TrendingUp };
 
 export function Wallets() {
   const { currencySymbol } = useApp();
-  const { data: snapshot, isLoading, isError, refetch } = useWalletsSnapshot();
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const { data: snapshot, isLoading, isError, refetch } = useWalletsSnapshot({ walletTxLimit: PAGE_SIZE });
   const tx = snapshot?.walletTx;
   const [activeWallet, setActiveWallet] = useState<WalletName>('Needs');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -34,10 +36,11 @@ export function Wallets() {
   useFabRegistration({ label: 'Transfer', icon: ArrowRightLeft, onClick: () => setTransferOpen(true) });
 
   const balances = useMemo(() => walletBalances(tx ?? []), [tx]);
-  const walletTxs = useMemo(
-    () => (tx ?? []).filter((t) => t.wallet === activeWallet).slice(0, 50),
-    [tx, activeWallet],
-  );
+  const allWalletTxs = useMemo(() => (tx ?? []).filter((t) => t.wallet === activeWallet), [tx, activeWallet]);
+  const visibleTxs = allWalletTxs.slice(0, (page + 1) * PAGE_SIZE);
+  const hasMore = allWalletTxs.length > visibleTxs.length;
+
+  const loadMore = () => setPage((p) => p + 1);
 
   if (isLoading) return <LoadingState rows={4} />;
   if (isError) return <ErrorState message="Couldn't load wallets" onRetry={() => refetch()} />;
@@ -89,7 +92,7 @@ export function Wallets() {
         </div>
       </div>
 
-      {walletTxs.length === 0 ? (
+      {visibleTxs.length === 0 ? (
         <Card padding="lg">
           <EmptyState
             icon={<Wallet className="w-7 h-7" />}
@@ -98,31 +101,38 @@ export function Wallets() {
           />
         </Card>
       ) : (
-        <div className="space-y-2">
-          {walletTxs.map((t) => {
-            const isOutflow = ['Expense', 'Withdrawal'].includes(t.transaction_type);
-            return (
-              <Card key={t.id} padding="sm" className="flex items-center gap-3">
-                <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', isOutflow ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success')}>
-                  {isOutflow ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-primary truncate">{t.reason ?? t.transaction_type}</p>
-                  <p className="text-xs text-text-muted">
-                    {t.transaction_code} · {formatRelative(t.created_at)}
-                    {t.batch_id && ' · batch allocation'}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className={clsx('text-sm font-bold tabular-nums', isOutflow ? 'text-danger' : 'text-success')}>
-                    {isOutflow ? '-' : '+'}{formatMoney(t.amount, currencySymbol)}
-                  </p>
-                  <Badge color="bg-surface-alt text-text-secondary">{t.transaction_type}</Badge>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <>
+          <div className="space-y-2">
+            {visibleTxs.map((t) => {
+              const isOutflow = ['Expense', 'Withdrawal'].includes(t.transaction_type);
+              return (
+                <Card key={t.id} padding="sm" className="flex items-center gap-3">
+                  <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', isOutflow ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success')}>
+                    {isOutflow ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text-primary truncate">{t.reason ?? t.transaction_type}</p>
+                    <p className="text-xs text-text-muted">
+                      {t.transaction_code} · {formatRelative(t.created_at)}
+                      {t.batch_id && ' · batch allocation'}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className={clsx('text-sm font-bold tabular-nums', isOutflow ? 'text-danger' : 'text-success')}>
+                      {isOutflow ? '-' : '+'}{formatMoney(t.amount, currencySymbol)}
+                    </p>
+                    <Badge color="bg-surface-alt text-text-secondary">{t.transaction_type}</Badge>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+          {hasMore && (
+            <div className="text-center pt-2">
+              <Button variant="outline" onClick={loadMore}>Load more transactions</Button>
+            </div>
+          )}
+        </>
       )}
 
       <WalletActionModal

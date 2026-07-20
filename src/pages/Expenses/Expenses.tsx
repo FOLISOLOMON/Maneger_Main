@@ -25,10 +25,12 @@ import { chartColors } from '../../theme/designTokens';
 type Tab = 'batch' | 'business';
 
 export function Expenses() {
-const { currencySymbol, theme } = useApp();
-const { data: expenses, isLoading, isError, refetch } = useExpenses();
-const charts = chartColors(theme);
-const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, charts.danger, charts.neutral];
+  const { currencySymbol, theme } = useApp();
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const { data: expenses, isLoading, isError, refetch } = useExpenses(PAGE_SIZE);
+  const charts = chartColors(theme);
+  const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, charts.danger, charts.neutral];
   const [tab, setTab] = useState<Tab>('batch');
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -37,7 +39,7 @@ const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, c
 
   useFabRegistration({ label: 'Add Expense', icon: Plus, onClick: () => setCreateOpen(true) });
 
-  const filtered = useMemo(() => {
+  const allFiltered = useMemo(() => {
     const all = (expenses ?? []).filter((e) => e.expense_type === (tab === 'batch' ? 'Batch' : 'Business'));
     if (!search.trim()) return all;
     const q = search.toLowerCase();
@@ -48,8 +50,13 @@ const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, c
     );
   }, [expenses, tab, search]);
 
-  const total = expenseTotal(filtered);
-  const byCategory = expensesByCategory(filtered);
+  const visibleExpenses = allFiltered.slice(0, (page + 1) * PAGE_SIZE);
+  const hasMore = allFiltered.length > visibleExpenses.length;
+
+  const loadMore = () => setPage((p) => p + 1);
+
+  const total = expenseTotal(allFiltered);
+  const byCategory = expensesByCategory(allFiltered);
 
   if (isLoading) return <LoadingState rows={4} />;
   if (isError) return <ErrorState message="Couldn't load expenses" onRetry={() => refetch()} />;
@@ -62,7 +69,7 @@ const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, c
         icon={Receipt}
         label={tab === 'batch' ? 'Total Batch Expenses' : 'Total Business Expenses'}
         value={formatMoney(total, currencySymbol)}
-        hint={`${filtered.length} record${filtered.length === 1 ? '' : 's'}`}
+        hint={`${allFiltered.length} record${allFiltered.length === 1 ? '' : 's'}`}
         iconBg="bg-warning-bg"
         accent="text-warning"
       />
@@ -108,7 +115,7 @@ const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, c
         </ChartCard>
       )}
 
-      {filtered.length === 0 ? (
+      {visibleExpenses.length === 0 ? (
         <Card padding="lg">
           <EmptyState
             icon={<Receipt className="w-7 h-7" />}
@@ -118,26 +125,33 @@ const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, c
           />
         </Card>
       ) : (
-        <div className="space-y-2.5">
-          {filtered.map((e) => (
-            <Card key={e.id} padding="sm" className="flex items-center gap-3" hover>
-              <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center flex-shrink-0">
-                <Receipt className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-text-primary truncate">{e.expense_name}</p>
-                  <Badge color="bg-surface-alt text-text-secondary">{e.category}</Badge>
+        <>
+          <div className="space-y-2.5">
+            {visibleExpenses.map((e) => (
+              <Card key={e.id} padding="sm" className="flex items-center gap-3" hover>
+                <div className="w-10 h-10 rounded-xl bg-warning-bg text-warning flex items-center justify-center flex-shrink-0">
+                  <Receipt className="w-5 h-5" />
                 </div>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {e.expense_code} · {formatRelative(e.expense_date)}
-                  {e.batch && ` · ${e.batch.batch_code}`}
-                </p>
-              </div>
-              <p className="text-sm font-bold text-text-primary tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
-            </Card>
-          ))}
-        </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-text-primary truncate">{e.expense_name}</p>
+                    <Badge color="bg-surface-alt text-text-secondary">{e.category}</Badge>
+                  </div>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {e.expense_code} · {formatRelative(e.expense_date)}
+                    {e.batch && ` · ${e.batch.batch_code}`}
+                  </p>
+                </div>
+                <p className="text-sm font-bold text-text-primary tabular-nums flex-shrink-0">-{formatMoney(e.amount, currencySymbol)}</p>
+              </Card>
+            ))}
+          </div>
+          {hasMore && (
+            <div className="text-center pt-2">
+              <Button variant="outline" onClick={loadMore}>Load more expenses</Button>
+            </div>
+          )}
+        </>
       )}
 
       <CreateExpenseModal

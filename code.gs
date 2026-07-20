@@ -332,6 +332,12 @@ function runAction(action, params) {
       case 'recomputeBatch':
         result = recomputeBatch(params.batchId);
         break;
+      case 'createBatchAction':
+        result = createBatchAction(params.payload || {});
+        break;
+      case 'createProductAction':
+        result = createProductAction(params.payload || {});
+        break;
       case 'createExpense':
         result = createExpenseAction(params);
         break;
@@ -354,6 +360,12 @@ function runAction(action, params) {
       case 'createSampleBatch':
         result = createSampleBatch();
         break;
+      case 'markNotificationRead':
+        result = markNotificationReadAction(params.id);
+        break;
+      case 'markAllNotificationsRead':
+        result = markAllNotificationsReadAction();
+        break;
 
       // ---- batched snapshots: return everything a page needs in ONE request ----
       case 'getDashboardSnapshot':
@@ -361,10 +373,10 @@ function runAction(action, params) {
           settings: getRecords('Settings')[0] || null,
           batches: joinBatches(getRecords('InventoryBatches')),
           products: joinProducts(getRecords('Products')),
-          sales: joinSales(getRecords('Sales')),
-          expenses: joinExpenses(getRecords('Expenses')),
-          walletTx: joinWalletTransactions(getRecords('WalletTransactions')),
-          notifications: getRecords('Notifications')
+          sales: joinSales(Array.isArray(params.sales) ? params.sales : getRecords('Sales').slice(0, params.salesLimit || 0)),
+          expenses: joinExpenses(Array.isArray(params.expenses) ? params.expenses : getRecords('Expenses').slice(0, params.expensesLimit || 0)),
+          walletTx: joinWalletTransactions(getRecords('WalletTransactions').slice(0, params.walletTxLimit || 0)),
+          notifications: getRecords('Notifications').slice(0, params.notificationsLimit || 0)
         };
         break;
       case 'getInventorySnapshot':
@@ -377,23 +389,15 @@ function runAction(action, params) {
       case 'getBatchSnapshot':
         result = {
           batch: joinBatch(getRecordById('InventoryBatches', params.id)),
-          products: joinProducts(getRecords('Products').filter(function (p) {
-            return String(p.batch_id || '') === String(params.id || '');
-          })),
-          sales: joinSales(getRecords('Sales').filter(function (s) {
-            return String(s.batch_id || '') === String(params.id || '');
-          })),
-          expenses: getRecords('Expenses').filter(function (e) {
-            return String(e.batch_id || '') === String(params.id || '');
-          }),
-          walletTx: joinWalletTransactions(getRecords('WalletTransactions').filter(function (tx) {
-            return String(tx.batch_id || '') === String(params.id || '');
-          }))
+          products: joinProducts(getRecordsByBatch('Products', params.id)),
+          sales: joinSales(getRecordsByBatch('Sales', params.id).slice(0, params.salesLimit || 0)),
+          expenses: getRecordsByBatch('Expenses', params.id).slice(0, params.expensesLimit || 0),
+          walletTx: joinWalletTransactions(getRecordsByBatch('WalletTransactions', params.id).slice(0, params.walletTxLimit || 0))
         };
         break;
       case 'getSalesSnapshot':
         result = {
-          sales: joinSales(getRecords('Sales')),
+          sales: joinSales(getRecords('Sales').slice(0, params.salesLimit || 0)),
           products: joinProducts(getRecords('Products')),
           customers: getRecords('Customers'),
           batches: joinBatches(getRecords('InventoryBatches'))
@@ -401,13 +405,13 @@ function runAction(action, params) {
         break;
       case 'getWalletsSnapshot':
         result = {
-          walletTx: joinWalletTransactions(getRecords('WalletTransactions')),
+          walletTx: joinWalletTransactions(getRecords('WalletTransactions').slice(0, params.walletTxLimit || 0)),
           settings: getRecords('Settings')[0] || null
         };
         break;
       case 'getNotificationsSnapshot':
         result = {
-          notifications: getRecords('Notifications')
+          notifications: getRecords('Notifications').slice(0, params.notificationsLimit || 0)
         };
         break;
       case 'batch': {
@@ -582,6 +586,9 @@ function createRecord(sheetName, payload) {
     if (header === 'updated_at') {
       return item.updated_at || timestamp;
     }
+    if (header === 'status' && sheetName === 'InventoryBatches') {
+      return item.status || 'Draft';
+    }
     return item[header] !== undefined ? item[header] : '';
   });
 
@@ -611,6 +618,9 @@ function updateRecord(sheetName, id, payload) {
     }
     if (header === 'updated_at') {
       return item.updated_at || '';
+    }
+    if (header === 'status' && sheetName === 'InventoryBatches') {
+      return item.status || 'Draft';
     }
     return item[header] !== undefined ? item[header] : '';
   });
@@ -667,6 +677,35 @@ function findRowIndexById(sheet, headers, id) {
     }
   }
   return null;
+}
+
+function totalBatchCost(payload) {
+  return (
+    (Number(payload.purchase_cost) || 0) +
+    (Number(payload.transport_cost) || 0) +
+    (Number(payload.loading_cost) || 0) +
+    (Number(payload.import_duty) || 0) +
+    (Number(payload.insurance) || 0) +
+    (Number(payload.other_costs) || 0)
+  );
+}
+
+// ============================================================
+// FILTERED READ HELPERS
+// ============================================================
+
+function getRecordsByBatch(sheetName, batchId) {
+  var all = getRecords(sheetName);
+  return all.filter(function (r) {
+    return String(r.batch_id || '') === String(batchId || '');
+  });
+}
+
+function getRecordsByCustomer(sheetName, customerId) {
+  var all = getRecords(sheetName);
+  return all.filter(function (r) {
+    return String(r.customer_id || '') === String(customerId || '');
+  });
 }
 
 // ============================================================
@@ -795,6 +834,46 @@ function createInventoryBatch(batchPayload, productPayloads) {
   };
 }
 
+function createBatchAction(payload) {
+  const total = totalBatchCost(payload);
+  const status = total > 0 ? 'Purchased' : 'Draft';
+
+  const batch = createRecord('InventoryBatches', Object.assign({
+    status: status,
+    completion_percentage: 0,
+    remaining_stock: 0,
+    gross_revenue: 0,
+    gross_profit: 0,
+    net_profit: 0,
+    roi: 0
+  }, payload));
+
+  logActivity('System', 'Batch Created', 'Inventory', batch.id,
+    'Created batch ' + batch.batch_code);
+
+  return joinBatch(batch);
+}
+
+function createProductAction(payload) {
+  const product = createRecord('Products', Object.assign({
+    batch_id: payload.batch_id,
+    status: 'Active',
+    current_stock: payload.initial_stock || 0,
+    initial_stock: payload.initial_stock || 0,
+    reorder_level: payload.reorder_level || 0
+  }, payload));
+
+  recomputeBatch(payload.batch_id);
+
+  logActivity('System', 'Product Added', 'Inventory', product.id,
+    'Added product ' + product.product_name);
+
+  return {
+    product: joinProduct(product),
+    batch: joinBatch(getRecordById('InventoryBatches', payload.batch_id))
+  };
+}
+
 /**
  * recordSale : validate stock, decrement product, recompute parent batch.
  * Mirrors the Postgres record_sale RPC.
@@ -864,10 +943,8 @@ function recordSaleAction(params) {
     success: true,
     message: 'Sale recorded',
     data: {
-      sale_id: sale.id,
-      sale_code: sale.sale_code,
-      total_sale: totalSale,
-      profit: profit
+      sale: joinSale(sale),
+      batch: joinBatch(getRecordById('InventoryBatches', batch.id))
     }
   };
 }
@@ -897,7 +974,14 @@ function voidSaleAction(saleId) {
 
   logActivity('System', 'Sale Voided', 'Sales', saleId, 'Voided sale ' + sale.sale_code);
 
-  return { success: true, message: 'Sale voided and stock restored' };
+  return {
+    success: true,
+    message: 'Sale voided and stock restored',
+    data: {
+      sale: joinSale(getRecordById('Sales', saleId)),
+      batch: joinBatch(getRecordById('InventoryBatches', sale.batch_id))
+    }
+  };
 }
 
 /**
@@ -978,12 +1062,9 @@ function recomputeBatch(batchId) {
 
   const totalCost = Number(batch.total_batch_cost || 0);
 
-  const products = getRecords('Products').filter(function (p) {
-    return String(p.batch_id || '') === String(batchId);
-  });
-
-  const sales = getRecords('Sales').filter(function (s) {
-    return String(s.batch_id || '') === String(batchId) && s.status === 'Completed';
+  const products = getRecordsByBatch('Products', batchId);
+  const sales = getRecordsByBatch('Sales', batchId).filter(function (s) {
+    return s.status === 'Completed';
   });
 
   let totalInitial = 0;
@@ -1002,8 +1083,8 @@ function recomputeBatch(batchId) {
 
   const grossProfit = grossRevenue - cogs;
 
-  const batchExpenses = getRecords('Expenses').filter(function (e) {
-    return String(e.batch_id || '') === String(batchId) && e.expense_type === 'Batch';
+  const batchExpenses = getRecordsByBatch('Expenses', batchId).filter(function (e) {
+    return e.expense_type === 'Batch';
   }).reduce(function (sum, e) {
     return sum + Number(e.amount || 0);
   }, 0);
@@ -1105,7 +1186,7 @@ function closeBatchAction(batchId) {
     success: true,
     message: 'Batch closed and profit allocated',
     data: {
-      batch_id: batchId,
+      batch: joinBatch(getRecordById('InventoryBatches', batchId)),
       net_profit: net,
       needs: needs,
       savings: savings,
@@ -1192,4 +1273,23 @@ function createSampleBatch() {
   );
 
   return batchResult;
+}
+
+function markNotificationReadAction(id) {
+  const record = getRecordById('Notifications', id);
+  if (!record) return { success: false, message: 'Notification not found' };
+  updateRecord('Notifications', id, { read: true });
+  return { success: true };
+}
+
+function markAllNotificationsReadAction() {
+  const all = getRecords('Notifications');
+  let count = 0;
+  all.forEach(function (n) {
+    if (!n.read) {
+      updateRecord('Notifications', n.id, { read: true });
+      count++;
+    }
+  });
+  return { success: true, count: count };
 }
