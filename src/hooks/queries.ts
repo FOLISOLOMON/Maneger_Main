@@ -19,23 +19,14 @@ import type {
 export const qk = {
   settings: ['settings'] as const,
   suppliers: ['suppliers'] as const,
-  supplier: (id: string) => ['supplier', id] as const,
   batches: ['batches'] as const,
-  batch: (id: string) => ['batch', id] as const,
-  supplierBatches: (id: string) => ['supplier-batches', id] as const,
   products: ['products'] as const,
-  batchProducts: (id: string) => ['batch-products', id] as const,
   sales: ['sales'] as const,
-  batchSales: (id: string) => ['batch-sales', id] as const,
-  customerSales: (id: string) => ['customer-sales', id] as const,
   expenses: ['expenses'] as const,
-  batchExpenses: (id: string) => ['batch-expenses', id] as const,
   walletTx: ['wallet-tx'] as const,
   walletTxByWallet: (w: WalletName) => ['wallet-tx', w] as const,
   customers: ['customers'] as const,
-  customer: (id: string) => ['customer', id] as const,
   notifications: ['notifications'] as const,
-  activityLogs: ['activity-logs'] as const,
   dashboard: ['dashboard'] as const,
   inventory: ['inventory'] as const,
   batchSnapshot: (id: string) => ['batch-snapshot', id] as const,
@@ -72,14 +63,6 @@ export function useSuppliers() {
   return useQuery({ queryKey: qk.suppliers, queryFn: api.fetchSuppliers, staleTime: 30_000 });
 }
 
-export function useSupplier(id: string | undefined) {
-  return useQuery({
-    queryKey: id ? qk.supplier(id) : ['supplier', 'missing'],
-    queryFn: () => api.fetchSupplier(id!),
-    enabled: !!id,
-  });
-}
-
 export function useCreateSupplier() {
   const qc = useQueryClient();
   return useMutation({
@@ -88,36 +71,10 @@ export function useCreateSupplier() {
   });
 }
 
-export function useUpdateSupplier() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Supplier> }) => api.updateSupplier(id, patch),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.suppliers });
-    },
-  });
-}
-
 // ---------- Batches ----------
 
 export function useBatches() {
   return useQuery({ queryKey: qk.batches, queryFn: api.fetchBatches, staleTime: 5_000 });
-}
-
-export function useBatch(id: string | undefined) {
-  return useQuery({
-    queryKey: id ? qk.batch(id) : ['batch', 'missing'],
-    queryFn: () => api.fetchBatch(id!),
-    enabled: !!id,
-  });
-}
-
-export function useBatchesBySupplier(supplierId: string | undefined) {
-  return useQuery({
-    queryKey: supplierId ? qk.supplierBatches(supplierId) : ['supplier-batches', 'missing'],
-    queryFn: () => api.fetchBatchesBySupplier(supplierId!),
-    enabled: !!supplierId,
-  });
 }
 
 export function useCreateBatch() {
@@ -133,32 +90,6 @@ export function useCreateBatch() {
         if (!old) return old;
         return { ...old, batches: [data, ...old.batches] };
       });
-      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
-      qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
-      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
-    },
-  });
-}
-
-export function useUpdateBatch() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<InventoryBatch> }) => api.updateBatch(id, patch),
-    onSuccess: (data) => {
-      qc.setQueryData(qk.dashboard, (old: any) => {
-        if (!old) return old;
-        return { ...old, batches: old.batches.map((b: any) => b.id === data.id ? { ...b, ...data } : b) };
-      });
-      qc.setQueryData(qk.inventory, (old: any) => {
-        if (!old) return old;
-        return { ...old, batches: old.batches.map((b: any) => b.id === data.id ? { ...b, ...data } : b) };
-      });
-      if (data.id) {
-        qc.setQueryData(qk.batchSnapshot(data.id), (old: any) => {
-          if (!old) return old;
-          return { ...old, batch: { ...old.batch, ...data } };
-        });
-      }
       qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
       qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
       qc.invalidateQueries({ queryKey: qk.batches, exact: false });
@@ -202,14 +133,6 @@ export function useCloseBatch() {
 
 export function useProducts() {
   return useQuery({ queryKey: qk.products, queryFn: api.fetchProducts, staleTime: 5_000 });
-}
-
-export function useBatchProducts(batchId: string | undefined) {
-  return useQuery({
-    queryKey: batchId ? qk.batchProducts(batchId) : ['batch-products', 'missing'],
-    queryFn: () => api.fetchProductsByBatch(batchId!),
-    enabled: !!batchId,
-  });
 }
 
 export function useCreateProduct() {
@@ -280,22 +203,6 @@ export function useSales(limit?: number, offset: number = 0) {
     queryKey: limit ? [...qk.sales, 'limited', limit, offset] : qk.sales,
     queryFn: () => api.fetchSales(limit, offset),
     staleTime: 5_000,
-  });
-}
-
-export function useBatchSales(batchId: string | undefined, limit?: number) {
-  return useQuery({
-    queryKey: batchId ? [...qk.batchSales(batchId), limit].filter(Boolean) as string[] : ['batch-sales', 'missing'],
-    queryFn: () => api.fetchSalesByBatch(batchId!, limit),
-    enabled: !!batchId,
-  });
-}
-
-export function useCustomerSales(customerId: string | undefined) {
-  return useQuery({
-    queryKey: customerId ? qk.customerSales(customerId) : ['customer-sales', 'missing'],
-    queryFn: () => api.fetchSalesByCustomer(customerId!),
-    enabled: !!customerId,
   });
 }
 
@@ -449,14 +356,6 @@ export function useExpenses(limit?: number, offset: number = 0) {
   });
 }
 
-export function useBatchExpenses(batchId: string | undefined, limit?: number) {
-  return useQuery({
-    queryKey: batchId ? [...qk.batchExpenses(batchId), limit].filter(Boolean) as string[] : ['batch-expenses', 'missing'],
-    queryFn: () => api.fetchExpensesByBatch(batchId!, limit),
-    enabled: !!batchId,
-  });
-}
-
 export function useCreateExpense() {
   const qc = useQueryClient();
   return useMutation({
@@ -527,14 +426,6 @@ export function useCustomers() {
   return useQuery({ queryKey: qk.customers, queryFn: api.fetchCustomers, staleTime: 30_000 });
 }
 
-export function useCustomer(id: string | undefined) {
-  return useQuery({
-    queryKey: id ? qk.customer(id) : ['customer', 'missing'],
-    queryFn: () => api.fetchCustomer(id!),
-    enabled: !!id,
-  });
-}
-
 export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
@@ -548,27 +439,7 @@ export function useCreateCustomer() {
   });
 }
 
-export function useUpdateCustomer() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Customer> }) => api.updateCustomer(id, patch),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.customers });
-    },
-  });
-}
-
 // ---------- Notifications ----------
-
-export function useNotifications(limit?: number, offset: number = 0) {
-  return useQuery({
-    queryKey: limit ? [...qk.notifications, 'limited', limit, offset] : qk.notifications,
-    queryFn: () => api.fetchNotifications(limit, offset),
-    staleTime: 15_000,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-  });
-}
 
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
@@ -643,16 +514,6 @@ export function useMarkAllNotificationsRead() {
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot, exact: false });
       qc.invalidateQueries({ queryKey: qk.notifications, exact: false });
     },
-  });
-}
-
-// ---------- Activity logs ----------
-
-export function useActivityLogs(limit: number = 50) {
-  return useQuery({
-    queryKey: [...qk.activityLogs, limit] as const,
-    queryFn: () => api.fetchActivityLogs(limit),
-    staleTime: 15_000,
   });
 }
 

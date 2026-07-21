@@ -2,13 +2,14 @@
 // Spec section 7.8: active / completed / archived tabs, batch cards with
 // name, supplier, completion, profit, remaining stock, status.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Package, ChevronRight } from 'lucide-react';
 import { useInventorySnapshot, useCreateBatch } from '../../hooks/queries';
 import { useApp } from '../../contexts/AppContext';
 import { formatMoney, formatMoneyCompact, formatPercent, formatDate } from '../../utils/format';
 import { Card, Badge, ProgressBar, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
+import { Pagination } from '../../components/common/Pagination';
 import { SearchBar } from '../../components/common/StatCard';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
@@ -20,13 +21,12 @@ import { todayInputDate } from '../../utils/format';
 import { totalBatchCost } from '../../services/calculations';
 import type { BatchWithSupplier } from '../../types';
 
-
-// (BatchStatus type removed — not used in this file)
-
 type Tab = 'active' | 'completed' | 'archived' | 'all';
 
 export function InventoryList() {
   const { currencySymbol } = useApp();
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
   const { data: snapshot, isLoading, isError, refetch } = useInventorySnapshot();
   const batches = snapshot?.batches;
   const products = snapshot?.products;
@@ -59,6 +59,12 @@ export function InventoryList() {
       (b as BatchWithSupplier).supplier?.supplier_name?.toLowerCase().includes(q),
     );
   }, [batches, tab, search]);
+
+  useEffect(() => { setPage(0); }, [tab, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleBatches = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const batchInitialStock = useMemo(() => {
     const map: Record<string, number> = {};
@@ -108,41 +114,44 @@ export function InventoryList() {
           />
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((b) => {
-            const meta = BATCH_STATUS_META[b.status] || BATCH_STATUS_META.Draft;
-            return (
-              <Link key={b.id} to={`/inventory/${b.id}`}>
-                <Card padding="md" hover>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-display font-bold text-text-primary truncate">{b.batch_name}</h3>
-                        <Badge color={meta.color} dot={meta.dot}>{meta.label}</Badge>
+        <>
+          <div className="space-y-3">
+            {visibleBatches.map((b) => {
+              const meta = BATCH_STATUS_META[b.status] || BATCH_STATUS_META.Draft;
+              return (
+                <Link key={b.id} to={`/inventory/${b.id}`}>
+                  <Card padding="md" hover>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display font-bold text-text-primary truncate">{b.batch_name}</h3>
+                          <Badge color={meta.color} dot={meta.dot}>{meta.label}</Badge>
+                        </div>
+                        <p className="text-xs text-text-muted mt-0.5">
+                          {b.batch_code} · {(b as BatchWithSupplier).supplier?.supplier_name ?? 'Unknown supplier'} · {formatDate(b.purchase_date)}
+                        </p>
                       </div>
-                      <p className="text-xs text-text-muted mt-0.5">
-                        {b.batch_code} · {(b as BatchWithSupplier).supplier?.supplier_name ?? 'Unknown supplier'} · {formatDate(b.purchase_date)}
-                      </p>
+                      <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0 mt-1" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0 mt-1" />
-                  </div>
 
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <Stat label="Revenue" value={formatMoneyCompact(b.gross_revenue, currencySymbol)} />
-                    <Stat label="Net Profit" value={formatMoneyCompact(b.net_profit, currencySymbol)} valueClass={b.net_profit >= 0 ? 'text-success' : 'text-danger'} />
-                    <Stat label="ROI" value={formatPercent(b.roi)} />
-                    <Stat label="Stock" value={`${b.remaining_stock}/${batchInitialStock[b.id] ?? 0}`} />
-                  </div>
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      <Stat label="Revenue" value={formatMoneyCompact(b.gross_revenue, currencySymbol)} />
+                      <Stat label="Net Profit" value={formatMoneyCompact(b.net_profit, currencySymbol)} valueClass={b.net_profit >= 0 ? 'text-success' : 'text-danger'} />
+                      <Stat label="ROI" value={formatPercent(b.roi)} />
+                      <Stat label="Stock" value={`${b.remaining_stock}/${batchInitialStock[b.id] ?? 0}`} />
+                    </div>
 
-                  <div className="mt-3 flex items-center gap-2">
-                    <ProgressBar value={b.completion_percentage} barClassName={b.completion_percentage >= 100 ? 'bg-success' : 'bg-accent'} />
-                    <span className="text-xs font-semibold text-text-secondary tabular-nums flex-shrink-0 w-10 text-right">{formatPercent(b.completion_percentage, 0)}</span>
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <ProgressBar value={b.completion_percentage} barClassName={b.completion_percentage >= 100 ? 'bg-success' : 'bg-accent'} />
+                      <span className="text-xs font-semibold text-text-secondary tabular-nums flex-shrink-0 w-10 text-right">{formatPercent(b.completion_percentage, 0)}</span>
+                    </div>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+          <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
+        </>
       )}
 
       <CreateBatchModal

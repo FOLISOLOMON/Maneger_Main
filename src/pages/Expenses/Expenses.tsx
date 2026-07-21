@@ -3,13 +3,14 @@
 // create flow that asks expense type first, then batch (if batch), then
 // category, amount, date.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Receipt, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import { useExpenses, useBatches, useCreateExpense } from '../../hooks/queries';
 import { formatMoney, formatRelative, todayInputDate } from '../../utils/format';
 import { Card, Badge, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
+import { Pagination } from '../../components/common/Pagination';
 import { SearchBar, StatCard } from '../../components/common/StatCard';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
@@ -26,9 +27,9 @@ type Tab = 'batch' | 'business';
 
 export function Expenses() {
   const { currencySymbol, theme } = useApp();
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
-  const { data: expenses, isLoading, isError, refetch } = useExpenses(PAGE_SIZE);
+  const { data: expenses, isLoading, isError, refetch } = useExpenses();
   const charts = chartColors(theme);
   const PIE_COLORS = [charts.accent, charts.accent, charts.success, charts.info, charts.danger, charts.neutral];
   const [tab, setTab] = useState<Tab>('batch');
@@ -50,10 +51,11 @@ export function Expenses() {
     );
   }, [expenses, tab, search]);
 
-  const visibleExpenses = allFiltered.slice(0, (page + 1) * PAGE_SIZE);
-  const hasMore = allFiltered.length > visibleExpenses.length;
+  useEffect(() => { setPage(0); }, [tab, search]);
 
-  const loadMore = () => setPage((p) => p + 1);
+  const totalPages = Math.max(1, Math.ceil(allFiltered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleExpenses = allFiltered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const total = expenseTotal(allFiltered);
   const byCategory = expensesByCategory(allFiltered);
@@ -146,11 +148,7 @@ export function Expenses() {
               </Card>
             ))}
           </div>
-          {hasMore && (
-            <div className="text-center pt-2">
-              <Button variant="outline" onClick={loadMore}>Load more expenses</Button>
-            </div>
-          )}
+          <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}
 

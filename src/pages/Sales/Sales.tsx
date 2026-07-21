@@ -3,7 +3,7 @@
 // customer → enter quantity, price, payment, discount. Uses the record_sale
 // RPC for atomic stock decrement + profit calc.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ShoppingCart, Plus, CreditCard, Banknote, Smartphone, XCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
@@ -14,6 +14,7 @@ import {
   formatMoney, formatRelative,
 } from '../../utils/format';
 import { Card, Badge, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
+import { Pagination } from '../../components/common/Pagination';
 import { SearchBar, StatCard, ConfirmDialog } from '../../components/common/StatCard';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
@@ -27,9 +28,9 @@ import { ShoppingCart as CartIcon, TrendingUp } from 'lucide-react';
 
 export function Sales() {
   const { currencySymbol } = useApp();
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
-  const { data: snapshot, isLoading, isError, refetch } = useSalesSnapshot(PAGE_SIZE);
+  const { data: snapshot, isLoading, isError, refetch } = useSalesSnapshot(9999);
   const sales = snapshot?.sales;
   const batches = snapshot?.batches;
   const products = snapshot?.products;
@@ -54,10 +55,11 @@ export function Sales() {
     );
   }, [sales, search]);
 
-  const visibleSales = allFiltered.slice(0, (page + 1) * PAGE_SIZE);
-  const hasMore = allFiltered.length > visibleSales.length;
+  useEffect(() => { setPage(0); }, [search]);
 
-  const loadMore = () => setPage((p) => p + 1);
+  const totalPages = Math.max(1, Math.ceil(allFiltered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleSales = allFiltered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
@@ -130,11 +132,7 @@ export function Sales() {
               </Card>
             ))}
           </div>
-          {hasMore && (
-            <div className="text-center pt-2">
-              <Button variant="outline" onClick={loadMore}>Load more sales</Button>
-            </div>
-          )}
+          <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}
 

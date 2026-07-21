@@ -219,10 +219,6 @@ export interface BatchWithSupplier extends InventoryBatch {
   supplier?: Pick<Supplier, 'id' | 'supplier_name' | 'supplier_code'>;
 }
 
-export interface ProductWithBatch extends Product {
-  batch?: Pick<InventoryBatch, 'id' | 'batch_code' | 'batch_name'>;
-}
-
 export interface SaleWithRelations extends Sale {
   product?: Pick<Product, 'id' | 'product_name' | 'brand'>;
   customer?: Pick<Customer, 'id' | 'customer_name'> | null;
@@ -240,19 +236,7 @@ export interface WalletBalance {
   outflow: number;
 }
 
-export interface DashboardKPIs {
-  todaySales: number;
-  todayProfit: number;
-  todayExpenses: number;
-  businessCash: number;
-  walletBalances: WalletBalance[];
-  activeBatches: number;
-  completedBatches: number;
-  lowStockCount: number;
-  totalSalesCount: number;
-}
-
-export interface BatchHealthResult {
+export interface WalletBalance {
   health: BatchHealth;
   score: number;
   reasons: string[];

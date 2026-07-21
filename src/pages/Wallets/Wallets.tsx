@@ -3,7 +3,7 @@
 // with balance, income, outflow. Transaction history per wallet. Withdrawal
 // and transfer create wallet_transactions rows (balances are derived).
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Wallet, PiggyBank, TrendingUp, ArrowDownLeft, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
@@ -11,6 +11,7 @@ import { useWalletsSnapshot, useCreateWalletTransaction, useBatches } from '../.
 import { walletBalances, batchAllocationTotals } from '../../services/calculations';
 import { formatMoney, formatMoneyCompact, formatRelative } from '../../utils/format';
 import { Card, EmptyState, LoadingState, ErrorState, SectionHeader, Badge } from '../../components/common/Card';
+import { Pagination } from '../../components/common/Pagination';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Field, Input, Select, Textarea } from '../../components/common/Form';
@@ -23,10 +24,10 @@ const WALLET_ICONS = { Needs: Wallet, Savings: PiggyBank, Growth: TrendingUp };
 
 export function Wallets() {
   const { currencySymbol } = useApp();
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const { data: snapshot, isLoading, isError, refetch } = useWalletsSnapshot(PAGE_SIZE);
+  const { data: snapshot, isLoading, isError, refetch } = useWalletsSnapshot(9999);
   const { data: batchesSnapshot } = useBatches();
   const tx = snapshot?.walletTx;
   const [activeWallet, setActiveWallet] = useState<WalletName>('Needs');
@@ -45,10 +46,12 @@ export function Wallets() {
     return all.filter((t) => t.batch_id === selectedBatchId);
   }, [tx, selectedBatchId]);
   const allWalletTxs = useMemo(() => filteredTxs.filter((t) => t.wallet === activeWallet), [filteredTxs, activeWallet]);
-  const visibleTxs = allWalletTxs.slice(0, (page + 1) * PAGE_SIZE);
-  const hasMore = allWalletTxs.length > visibleTxs.length;
 
-  const loadMore = () => setPage((p) => p + 1);
+  useEffect(() => { setPage(0); }, [selectedBatchId, activeWallet]);
+
+  const totalPages = Math.max(1, Math.ceil(allWalletTxs.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleTxs = allWalletTxs.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   if (isLoading) return <LoadingState rows={4} />;
   if (isError) return <ErrorState message="Couldn't load wallets" onRetry={() => refetch()} />;
@@ -169,11 +172,7 @@ export function Wallets() {
               );
             })}
           </div>
-          {hasMore && (
-            <div className="text-center pt-2">
-              <Button variant="outline" onClick={loadMore}>Load more transactions</Button>
-            </div>
-          )}
+          <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}
 

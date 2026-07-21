@@ -9,6 +9,7 @@ import { useNotificationsSnapshot, useMarkNotificationRead, useMarkAllNotificati
 import type { Notification } from '../../types';
 import { formatRelative } from '../../utils/format';
 import { Card, EmptyState, LoadingState, ErrorState, SectionHeader, Badge } from '../../components/common/Card';
+import { Pagination } from '../../components/common/Pagination';
 import { Button } from '../../components/common/Button';
 
 const PRIORITY_META: Record<string, { color: string; dot: string }> = {
@@ -18,9 +19,9 @@ const PRIORITY_META: Record<string, { color: string; dot: string }> = {
 };
 
 export function Notifications() {
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
-  const { data: snapshot, isLoading, isError, refetch } = useNotificationsSnapshot(PAGE_SIZE);
+  const { data: snapshot, isLoading, isError, refetch } = useNotificationsSnapshot();
   const notifications = snapshot?.notifications;
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
@@ -41,15 +42,16 @@ export function Notifications() {
     return { today, yesterday, earlier };
   }, [notifications]);
 
-  const visibleToday = allGrouped.today.slice(0, (page + 1) * PAGE_SIZE);
-  const visibleYesterday = allGrouped.yesterday.slice(0, (page + 1) * PAGE_SIZE);
-  const visibleEarlier = allGrouped.earlier.slice(0, (page + 1) * PAGE_SIZE);
+  const totalItems = allGrouped.today.length + allGrouped.yesterday.length + allGrouped.earlier.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
 
-  const hasMore = allGrouped.today.length > visibleToday.length ||
-                  allGrouped.yesterday.length > visibleYesterday.length ||
-                  allGrouped.earlier.length > visibleEarlier.length;
+  const startIdx = safePage * PAGE_SIZE;
+  const endIdx = startIdx + PAGE_SIZE;
 
-  const loadMore = () => setPage((p) => p + 1);
+  const visibleToday = allGrouped.today.slice(startIdx, endIdx);
+  const visibleYesterday = allGrouped.yesterday.slice(startIdx, endIdx);
+  const visibleEarlier = allGrouped.earlier.slice(startIdx, endIdx);
 
   const unread = (notifications ?? []).filter((n) => !n.read).length;
 
@@ -123,11 +125,7 @@ export function Notifications() {
               </div>
             ))}
           </div>
-          {hasMore && (
-            <div className="text-center pt-2">
-              <Button variant="outline" onClick={loadMore}>Load more notifications</Button>
-            </div>
-          )}
+          <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}
     </div>

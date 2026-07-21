@@ -2,13 +2,14 @@
 // Spec section 7.13 + 3.6. Supplier cards with computed stats (batch count,
 // avg profit, total purchases). Detail modal shows batch history.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Truck, Plus, MapPin, Phone, Package } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSuppliers, useBatches, useCreateSupplier } from '../../hooks/queries';
 import { supplierStats } from '../../services/calculations';
 import { formatMoney, formatMoneyCompact, formatDate } from '../../utils/format';
 import { Card, Badge, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
+import { Pagination } from '../../components/common/Pagination';
 import { SearchBar } from '../../components/common/StatCard';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
@@ -20,6 +21,8 @@ import { Link } from 'react-router-dom';
 
 export function Suppliers() {
   const { currencySymbol } = useApp();
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
   const { data: suppliers, isLoading, isError, refetch } = useSuppliers();
   const { data: batches } = useBatches();
   const [search, setSearch] = useState('');
@@ -36,6 +39,12 @@ export function Suppliers() {
     const q = search.toLowerCase();
     return all.filter((s) => s.supplier_name.toLowerCase().includes(q) || (s.location ?? '').toLowerCase().includes(q));
   }, [suppliers, search]);
+
+  useEffect(() => { setPage(0); }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleSuppliers = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const detailSupplier = (suppliers ?? []).find((s) => s.id === detailId);
   const detailBatches = (batches ?? []).filter((b) => b.supplier_id === detailId);
@@ -59,51 +68,54 @@ export function Suppliers() {
           />
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((s) => {
-            const supplierBatches = (batches ?? []).filter((b) => b.supplier_id === s.id);
-            const stats = supplierStats(supplierBatches);
-            return (
-              <Card key={s.id} padding="md" hover onClick={() => setDetailId(s.id)}>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center flex-shrink-0">
-                    <Truck className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-text-primary text-sm truncate">{s.supplier_name}</p>
-                      {s.status === 'Archived' && <Badge color="bg-surface-alt text-text-muted">Archived</Badge>}
+        <>
+          <div className="space-y-3">
+            {visibleSuppliers.map((s) => {
+              const supplierBatches = (batches ?? []).filter((b) => b.supplier_id === s.id);
+              const stats = supplierStats(supplierBatches);
+              return (
+                <Card key={s.id} padding="md" hover onClick={() => setDetailId(s.id)}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center flex-shrink-0">
+                      <Truck className="w-5 h-5" />
                     </div>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      {s.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {s.location}</span>}
-                    </p>
-                    {s.phone && <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {s.phone}</p>}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-text-primary tabular-nums">{stats.batchCount}</p>
-                    <p className="text-[10px] text-text-muted uppercase">Batches</p>
-                  </div>
-                </div>
-                {stats.batchCount > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border text-center">
-                    <div>
-                      <p className="text-xs font-bold text-text-primary tabular-nums">{formatMoneyCompact(stats.totalPurchaseCost, currencySymbol)}</p>
-                      <p className="text-[10px] text-text-muted uppercase">Purchases</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-text-primary text-sm truncate">{s.supplier_name}</p>
+                        {s.status === 'Archived' && <Badge color="bg-surface-alt text-text-muted">Archived</Badge>}
+                      </div>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        {s.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {s.location}</span>}
+                      </p>
+                      {s.phone && <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {s.phone}</p>}
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-success tabular-nums">{formatMoneyCompact(stats.averageProfit, currencySymbol)}</p>
-                      <p className="text-[10px] text-text-muted uppercase">Avg profit</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-text-primary">{stats.lastBatchDate ? formatDate(stats.lastBatchDate, 'MMM yy') : '—'}</p>
-                      <p className="text-[10px] text-text-muted uppercase">Last batch</p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-text-primary tabular-nums">{stats.batchCount}</p>
+                      <p className="text-[10px] text-text-muted uppercase">Batches</p>
                     </div>
                   </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+                  {stats.batchCount > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border text-center">
+                      <div>
+                        <p className="text-xs font-bold text-text-primary tabular-nums">{formatMoneyCompact(stats.totalPurchaseCost, currencySymbol)}</p>
+                        <p className="text-[10px] text-text-muted uppercase">Purchases</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-success tabular-nums">{formatMoneyCompact(stats.averageProfit, currencySymbol)}</p>
+                        <p className="text-[10px] text-text-muted uppercase">Avg profit</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-text-primary">{stats.lastBatchDate ? formatDate(stats.lastBatchDate, 'MMM yy') : '—'}</p>
+                        <p className="text-[10px] text-text-muted uppercase">Last batch</p>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+          <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
+        </>
       )}
 
       {/* Detail modal */}

@@ -12,7 +12,6 @@ import type {
   InventoryBatch,
   Product,
   Sale,
-  Settings,
   SupplierStats,
   WalletBalance,
   WalletName,
@@ -32,24 +31,6 @@ export function totalBatchCost(batch: Pick<InventoryBatch, 'purchase_cost' | 'tr
   );
 }
 
-export function batchGrossProfit(revenue: number, cogs: number): number {
-  return (Number(revenue) || 0) - (Number(cogs) || 0);
-}
-
-export function batchNetProfit(grossProfit: number, batchExpenses: number): number {
-  return (Number(grossProfit) || 0) - (Number(batchExpenses) || 0);
-}
-
-export function roi(netProfit: number, totalCost: number): number {
-  if (!totalCost || totalCost <= 0) return 0;
-  return ((Number(netProfit) || 0) / totalCost) * 100;
-}
-
-export function completionPercentage(soldUnits: number, purchasedUnits: number): number {
-  if (!purchasedUnits || purchasedUnits <= 0) return 0;
-  return (soldUnits / purchasedUnits) * 100;
-}
-
 // ---------- Product / stock math ----------
 
 export function profitMargin(sellingPrice: number, costPrice: number): number {
@@ -57,21 +38,9 @@ export function profitMargin(sellingPrice: number, costPrice: number): number {
   return ((sellingPrice - costPrice) / sellingPrice) * 100;
 }
 
-export function stockValue(products: Pick<Product, 'current_stock' | 'cost_price'>[]): number {
-  return products.reduce((sum, p) => sum + (p.current_stock * p.cost_price), 0);
-}
-
-export function remainingStockValue(products: Pick<Product, 'current_stock' | 'cost_price'>[]): number {
-  return stockValue(products);
-}
-
 export function isLowStock(product: Pick<Product, 'current_stock' | 'reorder_level'>, globalThreshold: number): boolean {
   const threshold = product.reorder_level > 0 ? product.reorder_level : globalThreshold;
   return product.current_stock <= threshold && product.current_stock > 0;
-}
-
-export function isOutOfStock(product: Pick<Product, 'current_stock'>): boolean {
-  return product.current_stock <= 0;
 }
 
 // ---------- Wallet math ----------
@@ -112,53 +81,8 @@ export function walletBalances(
   });
 }
 
-export function walletAllocation(netProfit: number, settings: Pick<Settings, 'needs_percentage' | 'savings_percentage' | 'growth_percentage'>) {
-  const net = Number(netProfit) || 0;
-  if (net <= 0) {
-    return { needs: 0, savings: 0, growth: 0, total: 0 };
-  }
-  const needs = (net * (settings.needs_percentage / 100));
-  const savings = (net * (settings.savings_percentage / 100));
-  const growth = (net * (settings.growth_percentage / 100));
-  return { needs, savings, growth, total: needs + savings + growth };
-}
-
 export function businessCash(wallets: WalletBalance[]): number {
   return wallets.reduce((sum, w) => sum + w.balance, 0);
-}
-
-export function walletBalancesByBatch(
-  transactions: WalletTransaction[],
-  batchId: string | null,
-): WalletBalance[] {
-  const wallets: WalletName[] = ['Needs', 'Savings', 'Growth'];
-  const list = Array.isArray(transactions)
-    ? transactions
-    : transactions && typeof transactions === 'object'
-      ? [transactions]
-      : [];
-  const filtered = batchId
-    ? list.filter((t) => t && t.batch_id === batchId)
-    : list;
-
-  return wallets.map((wallet) => {
-    const txs = filtered.filter((t) => t && t.wallet === wallet);
-    let balance = 0;
-    let income = 0;
-    let outflow = 0;
-    for (const t of txs) {
-      const amount = Number(t.amount) || 0;
-      const isOutflow = ['Expense', 'Withdrawal'].includes(t.transaction_type);
-      if (isOutflow) {
-        balance -= amount;
-        outflow += amount;
-      } else {
-        balance += amount;
-        income += amount;
-      }
-    }
-    return { wallet, balance, income, outflow };
-  });
 }
 
 export function batchAllocationTotals(
@@ -315,19 +239,6 @@ export function expensesByCategory(expenses: Expense[]): { category: string; tot
     .sort((a, b) => b.total - a.total);
 }
 
-// ---------- Reinvestment capacity (spec 3.13) ----------
-
-export function reinvestmentCapacity(
-  savingsBalance: number,
-  needsBalance: number,
-): { capacity: number; canAfford: (cost: number) => boolean } {
-  const capacity = (Number(savingsBalance) || 0) + (Number(needsBalance) || 0);
-  return {
-    capacity,
-    canAfford: (cost: number) => capacity >= cost,
-  };
-}
-
 // ---------- Dashboard KPIs ----------
 
 export function filterSalesToday(sales: Sale[]): Sale[] {
@@ -344,9 +255,4 @@ export function filterExpensesToday(expenses: Expense[]): Expense[] {
 
 export function countLowStock(products: Product[], threshold: number): number {
   return products.filter((p) => isLowStock(p, threshold)).length;
-}
-
-// Customer helper kept for type completeness; stats are computed in selectors.
-export function customerLifetimeValue(customer: Customer, sales: Sale[]): number {
-  return customerStats(customer.id, sales).totalSpent;
 }
