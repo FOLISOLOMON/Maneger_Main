@@ -7,7 +7,7 @@ import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type T
 import { clsx } from 'clsx';
 
 const baseField =
-  'w-full rounded-xl border border-border bg-surface px-3.5 text-sm text-text-primary placeholder:text-text-muted ' +
+  'w-full rounded-xl border border-border bg-surface px-3.5 text-base text-text-primary placeholder:text-text-muted ' +
   'focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none transition-colors ' +
   'disabled:bg-surface-alt disabled:text-text-muted';
 

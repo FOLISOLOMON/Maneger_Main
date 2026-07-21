@@ -4,17 +4,17 @@
 // RPC for atomic stock decrement + profit calc.
 
 import { useMemo, useState } from 'react';
-import { ShoppingCart, Plus, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { ShoppingCart, Plus, CreditCard, Banknote, Smartphone, XCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import {
-  useSalesSnapshot, useRecordSale,
+  useSalesSnapshot, useRecordSale, useVoidSale,
 } from '../../hooks/queries';
 import {
   formatMoney, formatRelative,
 } from '../../utils/format';
 import { Card, Badge, EmptyState, LoadingState, ErrorState, SectionHeader } from '../../components/common/Card';
-import { SearchBar, StatCard } from '../../components/common/StatCard';
+import { SearchBar, StatCard, ConfirmDialog } from '../../components/common/StatCard';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Field, Input, Select, Textarea } from '../../components/common/Form';
@@ -29,14 +29,16 @@ export function Sales() {
   const { currencySymbol } = useApp();
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
-  const { data: snapshot, isLoading, isError, refetch } = useSalesSnapshot({ salesLimit: PAGE_SIZE });
+  const { data: snapshot, isLoading, isError, refetch } = useSalesSnapshot(PAGE_SIZE);
   const sales = snapshot?.sales;
   const batches = snapshot?.batches;
   const products = snapshot?.products;
   const customers = snapshot?.customers;
   const [search, setSearch] = useState('');
   const [recordOpen, setRecordOpen] = useState(false);
+  const [voidId, setVoidId] = useState<string | null>(null);
   const recordSale = useRecordSale();
+  const voidSale = useVoidSale();
   const toast = useToast();
 
   useFabRegistration({ label: 'Record Sale', icon: Plus, onClick: () => setRecordOpen(true) });
@@ -115,6 +117,15 @@ export function Sales() {
                 <div className="text-right flex-shrink-0">
                   <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
                   {s.status === 'Completed' && <p className="text-xs text-success font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
+                  {s.status === 'Completed' && (
+                    <button
+                      onClick={() => setVoidId(s.id)}
+                      className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-danger hover:bg-danger-bg px-2 py-1 rounded-md transition-colors"
+                      aria-label="Void sale"
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> Void
+                    </button>
+                  )}
                 </div>
               </Card>
             ))}
@@ -146,6 +157,36 @@ export function Sales() {
             }
           } catch (e: unknown) {
             const message = e instanceof Error ? e.message : 'Failed to record sale';
+            toast(message, 'error');
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!voidId}
+        onCancel={() => setVoidId(null)}
+        title="Void this sale?"
+        message={
+          <div>
+            <p>This will restore the product stock and mark the sale as voided.</p>
+            <p className="mt-1 text-xs text-text-muted">This action cannot be undone.</p>
+          </div>
+        }
+        confirmLabel="Void Sale"
+        danger
+        loading={voidSale.isPending}
+        onConfirm={async () => {
+          if (!voidId) return;
+          try {
+            const res = await voidSale.mutateAsync(voidId);
+            if (res?.success) {
+              toast('Sale voided and stock restored', 'success');
+              setVoidId(null);
+            } else {
+              toast(res?.message ?? 'Failed to void sale', 'error');
+            }
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to void sale';
             toast(message, 'error');
           }
         }}
@@ -266,7 +307,7 @@ function RecordSaleModal({ open, onClose, currencySymbol, recording, onRecord, b
           <Select value={productId} onChange={(e) => onProductChange(e.target.value)} disabled={!batchId} invalid={!productId && open}>
             <option value="">Select a product…</option>
             {batchProducts.map((p) => (
-              <option key={p.id} value={p.id}>{p.product_name} — {p.current_stock} in stock ({formatMoney(p.selling_price, currencySymbol)})</option>
+              <option key={p.id} value={p.id}>{p.product_name} — {p.current_stock}/{p.initial_stock} in stock ({formatMoney(p.selling_price, currencySymbol)})</option>
             ))}
           </Select>
         </Field>

@@ -7,8 +7,8 @@ import { useMemo, useState } from 'react';
 import { Wallet, PiggyBank, TrendingUp, ArrowDownLeft, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
-import { useWalletsSnapshot, useCreateWalletTransaction } from '../../hooks/queries';
-import { walletBalances } from '../../services/calculations';
+import { useWalletsSnapshot, useCreateWalletTransaction, useBatches } from '../../hooks/queries';
+import { walletBalances, batchAllocationTotals } from '../../services/calculations';
 import { formatMoney, formatMoneyCompact, formatRelative } from '../../utils/format';
 import { Card, EmptyState, LoadingState, ErrorState, SectionHeader, Badge } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
@@ -25,7 +25,9 @@ export function Wallets() {
   const { currencySymbol } = useApp();
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
-  const { data: snapshot, isLoading, isError, refetch } = useWalletsSnapshot({ walletTxLimit: PAGE_SIZE });
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const { data: snapshot, isLoading, isError, refetch } = useWalletsSnapshot(PAGE_SIZE);
+  const { data: batchesSnapshot } = useBatches();
   const tx = snapshot?.walletTx;
   const [activeWallet, setActiveWallet] = useState<WalletName>('Needs');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -36,7 +38,13 @@ export function Wallets() {
   useFabRegistration({ label: 'Transfer', icon: ArrowRightLeft, onClick: () => setTransferOpen(true) });
 
   const balances = useMemo(() => walletBalances(tx ?? []), [tx]);
-  const allWalletTxs = useMemo(() => (tx ?? []).filter((t) => t.wallet === activeWallet), [tx, activeWallet]);
+  const batches = useMemo(() => (batchesSnapshot ?? []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), [batchesSnapshot]);
+  const filteredTxs = useMemo(() => {
+    const all = tx ?? [];
+    if (!selectedBatchId) return all;
+    return all.filter((t) => t.batch_id === selectedBatchId);
+  }, [tx, selectedBatchId]);
+  const allWalletTxs = useMemo(() => filteredTxs.filter((t) => t.wallet === activeWallet), [filteredTxs, activeWallet]);
   const visibleTxs = allWalletTxs.slice(0, (page + 1) * PAGE_SIZE);
   const hasMore = allWalletTxs.length > visibleTxs.length;
 
@@ -77,6 +85,40 @@ export function Wallets() {
             </button>
           );
         })}
+      </div>
+
+      {/* Batch selector */}
+      {batches.length > 0 && (
+        <div>
+          <label className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1.5 block">Filter by batch</label>
+          <Select value={selectedBatchId ?? ''} onChange={(e) => setSelectedBatchId(e.target.value || null)} className="max-w-xs">
+            <option value="">All Batches</option>
+            {batches.map((b) => (
+              <option key={b.id} value={b.id}>{b.batch_name} ({b.batch_code})</option>
+            ))}
+          </Select>
+        </div>
+      )}
+
+      {/* Allocation summary */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+          {selectedBatchId
+            ? `${batches.find((b) => b.id === selectedBatchId)?.batch_name ?? 'Batch'} Allocations`
+            : 'All Batch Allocations'}
+        </h3>
+        <div className="grid grid-cols-3 gap-2">
+          {batchAllocationTotals(tx ?? [], selectedBatchId).map((w) => {
+            const meta = WALLET_META[w.wallet];
+            return (
+              <Card key={w.wallet} padding="sm" className="text-center">
+                <p className="text-[10px] font-semibold text-text-muted uppercase">{meta.label}</p>
+                <p className="text-sm font-display font-bold text-text-primary tabular-nums">{formatMoney(w.amount, currencySymbol)}</p>
+                <p className="text-[10px] text-text-muted">Allocated</p>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       {/* Active wallet detail */}

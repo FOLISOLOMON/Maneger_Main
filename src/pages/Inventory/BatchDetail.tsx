@@ -6,13 +6,13 @@ import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Package, ShoppingCart, Receipt, Plus,
-  TrendingUp, Boxes, Lock, AlertCircle,
+  TrendingUp, Boxes, Lock, AlertCircle, Pencil,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useApp } from '../../contexts/AppContext';
 import {
-  useBatchSnapshot, useCreateProduct, useCloseBatch,
+  useBatchSnapshot, useCreateProduct, useCloseBatch, useUpdateProduct, useVoidSale,
 } from '../../hooks/queries';
 import {
   formatMoney, formatMoneyCompact, formatPercent, formatDate, formatRelative,
@@ -27,7 +27,7 @@ import { useToast } from '../../components/common/Toast';
 import { BATCH_STATUS_META, PRODUCT_CATEGORIES } from '../../constants';
 import { batchHealth, profitMargin } from '../../services/calculations';
 import { differenceInDays, parseISO } from 'date-fns';
-import type { BatchWithSupplier } from '../../types';
+import type { BatchWithSupplier, Product } from '../../types';
 
 type Tab = 'overview' | 'products' | 'sales' | 'expenses';
 
@@ -41,8 +41,12 @@ export function BatchDetail() {
   const expenses = snapshot?.expenses;
   const [tab, setTab] = useState<Tab>('overview');
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [editProductId, setEditProductId] = useState<string | null>(null);
+  const [voidSaleId, setVoidSaleId] = useState<string | null>(null);
   const [closeConfirm, setCloseConfirm] = useState(false);
   const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+  const voidSale = useVoidSale();
   const closeBatch = useCloseBatch();
   const toast = useToast();
 
@@ -261,6 +265,15 @@ export function BatchDetail() {
                         <MiniStat label="Margin" value={formatPercent(margin)} valueClass={margin >= 30 ? 'text-success' : 'text-text-secondary'} />
                       </div>
                     </div>
+                    {!isClosed && (
+                      <button
+                        onClick={() => setEditProductId(p.id)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-accent hover:bg-accent/10 transition-colors flex-shrink-0"
+                        aria-label="Edit product"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </Card>
               );
@@ -287,6 +300,14 @@ export function BatchDetail() {
                   <p className="text-sm font-bold text-text-primary tabular-nums">{formatMoney(s.total_sale, currencySymbol)}</p>
                   {s.status === 'Voided' && <Badge color="bg-danger-bg text-danger">Voided</Badge>}
                   {s.status === 'Completed' && <p className="text-xs text-success font-semibold tabular-nums">+{formatMoney(s.profit, currencySymbol)}</p>}
+                  {s.status === 'Completed' && (
+                    <button
+                      onClick={() => setVoidSaleId(s.id)}
+                      className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-danger hover:bg-danger-bg px-2 py-1 rounded-md transition-colors"
+                    >
+                      Void
+                    </button>
+                  )}
                 </div>
               </Card>
             ))
@@ -334,6 +355,58 @@ export function BatchDetail() {
           }}
         />
       )}
+
+      {/* Edit product modal */}
+      {editProductId && !isClosed && (
+        <EditProductModal
+          open={!!editProductId}
+          onClose={() => setEditProductId(null)}
+          currencySymbol={currencySymbol}
+          product={(products ?? []).find((p) => p.id === editProductId)!}
+          saving={updateProduct.isPending}
+          onSave={async (patch) => {
+            try {
+              await updateProduct.mutateAsync({ id: editProductId, patch });
+              toast('Product updated', 'success');
+              setEditProductId(null);
+            } catch (e: unknown) {
+              const message = e instanceof Error ? e.message : 'Failed to update product';
+              toast(message, 'error');
+            }
+          }}
+        />
+      )}
+
+      {/* Void sale confirm */}
+      <ConfirmDialog
+        open={!!voidSaleId}
+        onCancel={() => setVoidSaleId(null)}
+        title="Void this sale?"
+        message={
+          <div>
+            <p>This will restore the product stock and mark the sale as voided.</p>
+            <p className="mt-1 text-xs text-text-muted">This action cannot be undone.</p>
+          </div>
+        }
+        confirmLabel="Void Sale"
+        danger
+        loading={voidSale.isPending}
+        onConfirm={async () => {
+          if (!voidSaleId) return;
+          try {
+            const res = await voidSale.mutateAsync(voidSaleId);
+            if (res?.success) {
+              toast('Sale voided and stock restored', 'success');
+              setVoidSaleId(null);
+            } else {
+              toast(res?.message ?? 'Failed to void sale', 'error');
+            }
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to void sale';
+            toast(message, 'error');
+          }
+        }}
+      />
 
       {/* Close batch confirm */}
       <ConfirmDialog
@@ -502,6 +575,111 @@ function AddProductModal({ open, onClose, currencySymbol, creating, onCreate }: 
           <Field label="Initial stock" required>
             <Input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" />
           </Field>
+          <Field label="Reorder level" hint="When to alert low stock">
+            <Input type="number" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} placeholder="0" />
+          </Field>
+        </div>
+        <Field label="Description">
+          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Scent profile, size, notes" />
+        </Field>
+      </div>
+    </Modal>
+  );
+}
+
+interface EditProductModalProps {
+  open: boolean;
+  onClose: () => void;
+  currencySymbol: string;
+  product: Product;
+  saving: boolean;
+  onSave: (patch: Partial<Product>) => void;
+}
+
+function EditProductModal({ open, onClose, currencySymbol, product, saving, onSave }: EditProductModalProps) {
+  const [name, setName] = useState(product.product_name);
+  const [brand, setBrand] = useState(product.brand ?? '');
+  const [category, setCategory] = useState(product.category ?? '');
+  const [costPrice, setCostPrice] = useState(String(product.cost_price));
+  const [sellingPrice, setSellingPrice] = useState(String(product.selling_price));
+  const [stock, setStock] = useState(String(product.current_stock));
+  const [reorderLevel, setReorderLevel] = useState(String(product.reorder_level));
+  const [description, setDescription] = useState(product.description ?? '');
+  const toast = useToast();
+
+  const margin = (() => {
+    const c = Number(costPrice) || 0;
+    const s = Number(sellingPrice) || 0;
+    return s > 0 ? ((s - c) / s) * 100 : 0;
+  })();
+
+  const submit = () => {
+    if (!name.trim()) { toast('Product name is required', 'error'); return; }
+    const qty = Number(stock) || 0;
+    if (qty < 0) { toast('Stock cannot be negative', 'error'); return; }
+    onSave({
+      product_name: name.trim(),
+      brand: brand.trim() || null,
+      category: category || null,
+      cost_price: Number(costPrice) || 0,
+      selling_price: Number(sellingPrice) || 0,
+      current_stock: qty,
+      reorder_level: Number(reorderLevel) || 0,
+      description: description.trim() || null,
+    });
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Edit Product"
+      subtitle={product.product_code}
+      size="lg"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} loading={saving}>Save Changes</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Field label="Product name" required>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Blue Oud 100ml" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Brand">
+            <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Lattafa" />
+          </Field>
+          <Field label="Category">
+            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">Select…</option>
+              {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </Select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Cost price" required>
+            <Input type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} prefix={currencySymbol} placeholder="0.00" />
+          </Field>
+          <Field label="Selling price" required>
+            <Input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} prefix={currencySymbol} placeholder="0.00" />
+          </Field>
+        </div>
+        {Number(sellingPrice) > 0 && (
+          <p className="text-xs font-semibold text-text-secondary">
+            Profit margin: <span className={margin >= 30 ? 'text-success' : margin >= 10 ? 'text-warning' : 'text-danger'}>{margin.toFixed(1)}%</span>
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Initial stock" hint="Original quantity">
+            <Input type="number" value={String(product.initial_stock)} disabled className="bg-surface-alt text-text-muted" />
+          </Field>
+          <Field label="Current stock" required>
+            <Input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Reorder level" hint="When to alert low stock">
             <Input type="number" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} placeholder="0" />
           </Field>

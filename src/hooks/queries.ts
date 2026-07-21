@@ -3,6 +3,7 @@
 // flows through these hooks. Mutations invalidate the right query keys so
 // the UI refreshes automatically.
 
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../services/api';
 import type {
@@ -100,7 +101,7 @@ export function useUpdateSupplier() {
 // ---------- Batches ----------
 
 export function useBatches() {
-  return useQuery({ queryKey: qk.batches, queryFn: api.fetchBatches, staleTime: 15_000 });
+  return useQuery({ queryKey: qk.batches, queryFn: api.fetchBatches, staleTime: 5_000 });
 }
 
 export function useBatch(id: string | undefined) {
@@ -132,6 +133,9 @@ export function useCreateBatch() {
         if (!old) return old;
         return { ...old, batches: [data, ...old.batches] };
       });
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -155,6 +159,9 @@ export function useUpdateBatch() {
           return { ...old, batch: { ...old.batch, ...data } };
         });
       }
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -184,6 +191,9 @@ export function useCloseBatch() {
 
       qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -191,7 +201,7 @@ export function useCloseBatch() {
 // ---------- Products ----------
 
 export function useProducts() {
-  return useQuery({ queryKey: qk.products, queryFn: api.fetchProducts, staleTime: 15_000 });
+  return useQuery({ queryKey: qk.products, queryFn: api.fetchProducts, staleTime: 5_000 });
 }
 
 export function useBatchProducts(batchId: string | undefined) {
@@ -232,6 +242,9 @@ export function useCreateProduct() {
           batch: batch,
         };
       });
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -240,7 +253,7 @@ export function useUpdateProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<Product> }) => api.updateProduct(id, patch),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       qc.setQueryData(qk.dashboard, (old: any) => {
         if (!old) return old;
         return { ...old, products: old.products.map((p: any) => p.id === data.id ? { ...p, ...data } : p) };
@@ -250,11 +263,12 @@ export function useUpdateProduct() {
         return { ...old, products: old.products.map((p: any) => p.id === data.id ? { ...p, ...data } : p) };
       });
       if (data.batch_id) {
-        qc.setQueryData(qk.batchSnapshot(data.batch_id), (old: any) => {
-          if (!old) return old;
-          return { ...old, products: old.products.map((p: any) => p.id === data.id ? { ...p, ...data } : p) };
-        });
+        qc.invalidateQueries({ queryKey: qk.batchSnapshot(data.batch_id) });
+        qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
+        try { await api.recomputeBatch(data.batch_id); } catch {}
       }
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -265,7 +279,7 @@ export function useSales(limit?: number, offset: number = 0) {
   return useQuery({
     queryKey: limit ? [...qk.sales, 'limited', limit, offset] : qk.sales,
     queryFn: () => api.fetchSales(limit, offset),
-    staleTime: 10_000,
+    staleTime: 5_000,
   });
 }
 
@@ -347,6 +361,10 @@ export function useRecordSale() {
       }
 
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.salesSnapshot, exact: false });
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -413,6 +431,10 @@ export function useVoidSale() {
       }
 
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.salesSnapshot, exact: false });
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.inventory, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -423,7 +445,7 @@ export function useExpenses(limit?: number, offset: number = 0) {
   return useQuery({
     queryKey: limit ? [...qk.expenses, 'limited', limit, offset] : qk.expenses,
     queryFn: () => api.fetchExpenses(limit, offset),
-    staleTime: 15_000,
+    staleTime: 5_000,
   });
 }
 
@@ -468,6 +490,9 @@ export function useCreateExpense() {
 
       qc.invalidateQueries({ queryKey: qk.walletsSnapshot });
       qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
+      qc.invalidateQueries({ queryKey: qk.expenses, exact: false });
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.batches, exact: false });
     },
   });
 }
@@ -478,7 +503,7 @@ export function useWalletTransactions(limit?: number, offset: number = 0) {
   return useQuery({
     queryKey: limit ? [...qk.walletTx, 'limited', limit, offset] : qk.walletTx,
     queryFn: () => api.fetchWalletTransactions(limit, offset),
-    staleTime: 10_000,
+    staleTime: 5_000,
   });
 }
 
@@ -491,6 +516,7 @@ export function useCreateWalletTransaction() {
         if (!old) return old;
         return [data, ...old];
       });
+      qc.invalidateQueries({ queryKey: qk.walletsSnapshot, exact: false });
     },
   });
 }
@@ -576,8 +602,8 @@ export function useMarkNotificationRead() {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
-      qc.invalidateQueries({ queryKey: qk.notifications });
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot, exact: false });
+      qc.invalidateQueries({ queryKey: qk.notifications, exact: false });
     },
   });
 }
@@ -614,8 +640,8 @@ export function useMarkAllNotificationsRead() {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot });
-      qc.invalidateQueries({ queryKey: qk.notifications });
+      qc.invalidateQueries({ queryKey: qk.notificationsSnapshot, exact: false });
+      qc.invalidateQueries({ queryKey: qk.notifications, exact: false });
     },
   });
 }
@@ -632,16 +658,30 @@ export function useActivityLogs(limit: number = 50) {
 
 // ---------- Batched snapshots (one HTTP round-trip per page) ----------
 
-export function useDashboardSnapshot(options?: {
+export function useDashboardSnapshot({
+  salesLimit,
+  expensesLimit,
+  walletTxLimit,
+  notificationsLimit,
+}: {
   salesLimit?: number;
   expensesLimit?: number;
   walletTxLimit?: number;
   notificationsLimit?: number;
-}) {
+} = {}) {
+  const key = useMemo(() => {
+    const parts: unknown[] = [qk.dashboard];
+    if (salesLimit) parts.push('sales', salesLimit);
+    if (expensesLimit) parts.push('expenses', expensesLimit);
+    if (walletTxLimit) parts.push('walletTx', walletTxLimit);
+    if (notificationsLimit) parts.push('notifications', notificationsLimit);
+    return parts;
+  }, [salesLimit, expensesLimit, walletTxLimit, notificationsLimit]);
+
   return useQuery({
-    queryKey: options ? [...qk.dashboard, options] : qk.dashboard,
-    queryFn: () => api.fetchDashboardSnapshot(options),
-    staleTime: 15_000,
+    queryKey: key,
+    queryFn: () => api.fetchDashboardSnapshot({ salesLimit, expensesLimit, walletTxLimit, notificationsLimit }),
+    staleTime: 5_000,
   });
 }
 
@@ -649,7 +689,7 @@ export function useInventorySnapshot() {
   return useQuery({
     queryKey: qk.inventory,
     queryFn: api.fetchInventorySnapshot,
-    staleTime: 15_000,
+    staleTime: 5_000,
   });
 }
 
@@ -662,33 +702,34 @@ export function useBatchSnapshot(id: string | undefined, options?: {
     queryKey: id ? [...qk.batchSnapshot(id), options].filter(Boolean) as string[] : ['batch-snapshot', 'missing'],
     queryFn: () => api.fetchBatchSnapshot(id!, options),
     enabled: !!id,
+    staleTime: 5_000,
+  });
+}
+
+export function useSalesSnapshot(salesLimit?: number) {
+  return useQuery({
+    queryKey: salesLimit ? [...qk.salesSnapshot, salesLimit] : qk.salesSnapshot,
+    queryFn: () => api.fetchSalesSnapshot(salesLimit),
     staleTime: 10_000,
   });
 }
 
-export function useSalesSnapshot(options?: { salesLimit?: number }) {
+export function useWalletsSnapshot(walletTxLimit?: number) {
   return useQuery({
-    queryKey: options ? [...qk.salesSnapshot, options] : qk.salesSnapshot,
-    queryFn: () => api.fetchSalesSnapshot(options),
+    queryKey: walletTxLimit ? [...qk.walletsSnapshot, walletTxLimit] : qk.walletsSnapshot,
+    queryFn: () => api.fetchWalletsSnapshot(walletTxLimit),
     staleTime: 10_000,
   });
 }
 
-export function useWalletsSnapshot(options?: { walletTxLimit?: number }) {
+export function useNotificationsSnapshot(notificationsLimit?: number) {
   return useQuery({
-    queryKey: options ? [...qk.walletsSnapshot, options] : qk.walletsSnapshot,
-    queryFn: () => api.fetchWalletsSnapshot(options),
-    staleTime: 10_000,
-  });
-}
-
-export function useNotificationsSnapshot(options?: { notificationsLimit?: number }) {
-  return useQuery({
-    queryKey: options ? [...qk.notificationsSnapshot, options] : qk.notificationsSnapshot,
-    queryFn: () => api.fetchNotificationsSnapshot(options),
+    queryKey: notificationsLimit ? [...qk.notificationsSnapshot, notificationsLimit] : qk.notificationsSnapshot,
+    queryFn: () => api.fetchNotificationsSnapshot(notificationsLimit),
     staleTime: 15_000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
   });
 }

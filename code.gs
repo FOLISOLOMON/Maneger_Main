@@ -410,8 +410,9 @@ function runAction(action, params) {
         };
         break;
       case 'getNotificationsSnapshot':
+        const allNotifications = getRecords('Notifications');
         result = {
-          notifications: getRecords('Notifications').slice(0, params.notificationsLimit || 0)
+          notifications: params.notificationsLimit ? allNotifications.slice(0, params.notificationsLimit) : allNotifications
         };
         break;
       case 'batch': {
@@ -839,6 +840,7 @@ function createBatchAction(payload) {
   const status = total > 0 ? 'Purchased' : 'Draft';
 
   const batch = createRecord('InventoryBatches', Object.assign({
+    total_batch_cost: total,
     status: status,
     completion_percentage: 0,
     remaining_stock: 0,
@@ -1060,7 +1062,14 @@ function recomputeBatch(batchId) {
   const batch = getRecordById('InventoryBatches', batchId);
   if (!batch) return;
 
-  const totalCost = Number(batch.total_batch_cost || 0);
+  const totalCost = totalBatchCost({
+    purchase_cost: batch.purchase_cost,
+    transport_cost: batch.transport_cost,
+    loading_cost: batch.loading_cost,
+    import_duty: batch.import_duty,
+    insurance: batch.insurance,
+    other_costs: batch.other_costs
+  });
 
   const products = getRecordsByBatch('Products', batchId);
   const sales = getRecordsByBatch('Sales', batchId).filter(function (s) {
@@ -1115,6 +1124,7 @@ function recomputeBatch(batchId) {
   }
 
   updateRecord('InventoryBatches', batchId, {
+    total_batch_cost: totalCost,
     gross_revenue: grossRevenue,
     gross_profit: grossProfit,
     net_profit: netProfit,

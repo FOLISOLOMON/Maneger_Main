@@ -20,7 +20,7 @@ const PRIORITY_META: Record<string, { color: string; dot: string }> = {
 export function Notifications() {
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
-  const { data: snapshot, isLoading, isError, refetch } = useNotificationsSnapshot({ notificationsLimit: PAGE_SIZE });
+  const { data: snapshot, isLoading, isError, refetch } = useNotificationsSnapshot(PAGE_SIZE);
   const notifications = snapshot?.notifications;
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();

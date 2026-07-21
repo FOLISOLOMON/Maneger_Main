@@ -29,6 +29,7 @@ export function InventoryList() {
   const { currencySymbol } = useApp();
   const { data: snapshot, isLoading, isError, refetch } = useInventorySnapshot();
   const batches = snapshot?.batches;
+  const products = snapshot?.products;
   const suppliers = snapshot?.suppliers;
   const [tab, setTab] = useState<Tab>('active');
   const [search, setSearch] = useState('');
@@ -58,6 +59,14 @@ export function InventoryList() {
       (b as BatchWithSupplier).supplier?.supplier_name?.toLowerCase().includes(q),
     );
   }, [batches, tab, search]);
+
+  const batchInitialStock = useMemo(() => {
+    const map: Record<string, number> = {};
+    (products ?? []).forEach((p) => {
+      map[p.batch_id] = (map[p.batch_id] || 0) + p.initial_stock;
+    });
+    return map;
+  }, [products]);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'active', label: 'Active' },
@@ -122,7 +131,7 @@ export function InventoryList() {
                     <Stat label="Revenue" value={formatMoneyCompact(b.gross_revenue, currencySymbol)} />
                     <Stat label="Net Profit" value={formatMoneyCompact(b.net_profit, currencySymbol)} valueClass={b.net_profit >= 0 ? 'text-success' : 'text-danger'} />
                     <Stat label="ROI" value={formatPercent(b.roi)} />
-                    <Stat label="Stock" value={`${b.remaining_stock}`} />
+                    <Stat label="Stock" value={`${b.remaining_stock}/${batchInitialStock[b.id] ?? 0}`} />
                   </div>
 
                   <div className="mt-3 flex items-center gap-2">

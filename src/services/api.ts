@@ -160,6 +160,10 @@ export async function updateProduct(id: string, patch: Partial<Product>): Promis
   return (await sheetsUpdate('Products', id, patch)) as Product;
 }
 
+export async function recomputeBatch(batchId: string): Promise<void> {
+  await sheetsAction('recomputeBatch', { batchId });
+}
+
 // ---------- Sales (uses server-side recordSale) ----------
 
 export async function recordSale(input: {
@@ -365,13 +369,23 @@ export interface NotificationsSnapshot {
   notifications: Notification[];
 }
 
-export async function fetchDashboardSnapshot(options?: {
+export async function fetchDashboardSnapshot({
+  salesLimit,
+  expensesLimit,
+  walletTxLimit,
+  notificationsLimit,
+}: {
   salesLimit?: number;
   expensesLimit?: number;
   walletTxLimit?: number;
   notificationsLimit?: number;
-}): Promise<DashboardSnapshot> {
-  return (await sheetsAction('getDashboardSnapshot', options || {})) as DashboardSnapshot;
+} = {}): Promise<DashboardSnapshot> {
+  const params: ApiRecord = {};
+  if (salesLimit) params.salesLimit = salesLimit;
+  if (expensesLimit) params.expensesLimit = expensesLimit;
+  if (walletTxLimit) params.walletTxLimit = walletTxLimit;
+  if (notificationsLimit) params.notificationsLimit = notificationsLimit;
+  return (await sheetsAction('getDashboardSnapshot', params)) as DashboardSnapshot;
 }
 
 export async function fetchInventorySnapshot(): Promise<InventorySnapshot> {
@@ -386,16 +400,22 @@ export async function fetchBatchSnapshot(id: string, options?: {
   return (await sheetsAction('getBatchSnapshot', { id, ...options })) as BatchSnapshot;
 }
 
-export async function fetchSalesSnapshot(options?: { salesLimit?: number }): Promise<SalesSnapshot> {
-  return (await sheetsAction('getSalesSnapshot', options || {})) as SalesSnapshot;
+export async function fetchSalesSnapshot(salesLimit?: number): Promise<SalesSnapshot> {
+  const params: ApiRecord = {};
+  if (salesLimit) params.salesLimit = salesLimit;
+  return (await sheetsAction('getSalesSnapshot', params)) as SalesSnapshot;
 }
 
-export async function fetchWalletsSnapshot(options?: { walletTxLimit?: number }): Promise<WalletsSnapshot> {
-  return (await sheetsAction('getWalletsSnapshot', options || {})) as WalletsSnapshot;
+export async function fetchWalletsSnapshot(walletTxLimit?: number): Promise<WalletsSnapshot> {
+  const params: ApiRecord = {};
+  if (walletTxLimit) params.walletTxLimit = walletTxLimit;
+  return (await sheetsAction('getWalletsSnapshot', params)) as WalletsSnapshot;
 }
 
-export async function fetchNotificationsSnapshot(options?: { notificationsLimit?: number }): Promise<NotificationsSnapshot> {
-  return (await sheetsAction('getNotificationsSnapshot', options || {})) as NotificationsSnapshot;
+export async function fetchNotificationsSnapshot(notificationsLimit?: number): Promise<NotificationsSnapshot> {
+  const params: ApiRecord = {};
+  if (notificationsLimit) params.notificationsLimit = notificationsLimit;
+  return (await sheetsAction('getNotificationsSnapshot', params)) as NotificationsSnapshot;
 }
 
 // Fire several actions in a single round-trip. Returns an array of each

@@ -127,6 +127,62 @@ export function businessCash(wallets: WalletBalance[]): number {
   return wallets.reduce((sum, w) => sum + w.balance, 0);
 }
 
+export function walletBalancesByBatch(
+  transactions: WalletTransaction[],
+  batchId: string | null,
+): WalletBalance[] {
+  const wallets: WalletName[] = ['Needs', 'Savings', 'Growth'];
+  const list = Array.isArray(transactions)
+    ? transactions
+    : transactions && typeof transactions === 'object'
+      ? [transactions]
+      : [];
+  const filtered = batchId
+    ? list.filter((t) => t && t.batch_id === batchId)
+    : list;
+
+  return wallets.map((wallet) => {
+    const txs = filtered.filter((t) => t && t.wallet === wallet);
+    let balance = 0;
+    let income = 0;
+    let outflow = 0;
+    for (const t of txs) {
+      const amount = Number(t.amount) || 0;
+      const isOutflow = ['Expense', 'Withdrawal'].includes(t.transaction_type);
+      if (isOutflow) {
+        balance -= amount;
+        outflow += amount;
+      } else {
+        balance += amount;
+        income += amount;
+      }
+    }
+    return { wallet, balance, income, outflow };
+  });
+}
+
+export function batchAllocationTotals(
+  transactions: WalletTransaction[],
+  batchId: string | null,
+): { wallet: WalletName; amount: number }[] {
+  const wallets: WalletName[] = ['Needs', 'Savings', 'Growth'];
+  const list = Array.isArray(transactions)
+    ? transactions
+    : transactions && typeof transactions === 'object'
+      ? [transactions]
+      : [];
+  const filtered = batchId
+    ? list.filter((t) => t && t.batch_id === batchId && t.transaction_type === 'Allocation')
+    : list.filter((t) => t && t.transaction_type === 'Allocation');
+
+  return wallets.map((wallet) => ({
+    wallet,
+    amount: filtered
+      .filter((t) => t && t.wallet === wallet)
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
+  }));
+}
+
 // ---------- Sale math ----------
 
 export function saleTotalSale(unitPrice: number, quantity: number, discount: number, discountType: 'Amount' | 'Percent'): number {
