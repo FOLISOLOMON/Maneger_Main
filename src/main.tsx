@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { AppProvider } from './contexts/AppContext';
 import { ToastProvider } from './components/common/Toast';
+import { getSyncStatus } from './services/syncQueue';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -30,3 +31,5 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+getSyncStatus();

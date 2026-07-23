@@ -128,7 +128,10 @@ const SHEET_DEFINITIONS = {
     'reference_number',
     'status',
     'notes',
-    'created_at'
+    'created_at',
+    'amount_paid',
+    'balance',
+    'payment_status'
   ],
   Expenses: [
     'id',
@@ -154,6 +157,17 @@ const SHEET_DEFINITIONS = {
     'balance_after',
     'reason',
     'created_by',
+    'created_at'
+  ],
+  Payments: [
+    'id',
+    'payment_code',
+    'sale_id',
+    'customer_id',
+    'amount',
+    'payment_method',
+    'payment_date',
+    'notes',
     'created_at'
   ],
   Notifications: [
@@ -187,6 +201,7 @@ function onOpen() {
     .createMenu('Veloura Manager')
     .addItem('Initialize sheets', 'initializeVelouraSheets')
     .addItem('Create sample batch', 'createSampleBatch')
+    .addItem('Backfill payment fields', 'backfillPaymentsAction')
     .addToUi();
 }
 
@@ -312,6 +327,9 @@ function runAction(action, params) {
       case 'listWalletTransactions':
         result = joinWalletTransactions(getRecords('WalletTransactions'));
         break;
+      case 'listPayments':
+        result = joinPayments(getRecords('Payments'));
+        break;
       case 'listSettings':
         result = getRecords('Settings')[0] || null;
         break;
@@ -348,6 +366,12 @@ function runAction(action, params) {
           created_by: 'System'
         }, params.walletPayload || {}));
         break;
+      case 'recordPayment':
+        result = recordPaymentAction(params);
+        break;
+      case 'backfillPayments':
+        result = backfillPaymentsAction();
+        break;
       case 'logActivity':
         result = logActivity(
           params.actor,
@@ -366,7 +390,20 @@ function runAction(action, params) {
       case 'markAllNotificationsRead':
         result = markAllNotificationsReadAction();
         break;
-
+      case 'createNotification': {
+        const notifPayload = params.payload || {};
+        result = createRecord('Notifications', {
+          type: notifPayload.type || 'info',
+          title: notifPayload.title || 'Notification',
+          message: notifPayload.message || '',
+          reference_type: notifPayload.reference_type || '',
+          reference_id: notifPayload.reference_id || '',
+          priority: notifPayload.priority || 'Medium',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+        break;
+      }
       // ---- batched snapshots: return everything a page needs in ONE request ----
       case 'getDashboardSnapshot':
         result = {
@@ -376,6 +413,7 @@ function runAction(action, params) {
           sales: joinSales(Array.isArray(params.sales) ? params.sales : getRecords('Sales').slice(0, params.salesLimit || 0)),
           expenses: joinExpenses(Array.isArray(params.expenses) ? params.expenses : getRecords('Expenses').slice(0, params.expensesLimit || 0)),
           walletTx: joinWalletTransactions(getRecords('WalletTransactions').slice(0, params.walletTxLimit || 0)),
+          payments: joinPayments(getRecords('Payments').slice(0, params.paymentsLimit || 0)),
           notifications: getRecords('Notifications').slice(0, params.notificationsLimit || 0)
         };
         break;
@@ -400,7 +438,8 @@ function runAction(action, params) {
           sales: joinSales(getRecords('Sales').slice(0, params.salesLimit || 0)),
           products: joinProducts(getRecords('Products')),
           customers: getRecords('Customers'),
-          batches: joinBatches(getRecords('InventoryBatches'))
+          batches: joinBatches(getRecords('InventoryBatches')),
+          payments: joinPayments(getRecords('Payments').slice(0, params.paymentsLimit || 0))
         };
         break;
       case 'getWalletsSnapshot':
@@ -482,11 +521,20 @@ function initializeSheet(spreadsheet, sheetName) {
     return sheet;
   }
 
-  const existingHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0] || [];
+  const existingHeaders = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0] || [];
   if (existingHeaders.join('').trim() === '') {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
+    return sheet;
+  }
+
+  // Append any missing columns at the end (schema migration)
+  const missing = headers.slice(existingHeaders.length);
+  if (missing.length > 0) {
+    const startCol = existingHeaders.length + 1;
+    sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+    sheet.autoResizeColumns(startCol, missing.length);
   }
 
   return sheet;
@@ -655,6 +703,7 @@ function generateBusinessId(sheetName) {
     Sales: 'SAL',
     Expenses: 'EXP',
     WalletTransactions: 'WAL',
+    Payments: 'PAY',
     Notifications: 'NOT',
     ActivityLogs: 'LOG'
   };
@@ -745,6 +794,9 @@ function joinProducts(products) {
   return products.map(joinProduct);
 }
 
+/**
+ * joinSale : join related product, customer, batch.
+ */
 function joinSale(sale) {
   if (!sale) return null;
   const product = getRecordById('Products', sale.product_id);
@@ -802,6 +854,27 @@ function joinWalletTx(tx) {
 
 function joinWalletTransactions(txs) {
   return txs.map(joinWalletTx);
+}
+
+function joinPayment(payment) {
+  if (!payment) return null;
+  const sale = payment.sale_id ? getRecordById('Sales', payment.sale_id) : null;
+  const customer = payment.customer_id ? getRecordById('Customers', payment.customer_id) : null;
+  return Object.assign({}, payment, {
+    sale: sale ? {
+      id: sale.id,
+      sale_code: sale.sale_code,
+      total_sale: sale.total_sale
+    } : null,
+    customer: customer ? {
+      id: customer.id,
+      customer_name: customer.customer_name
+    } : null
+  });
+}
+
+function joinPayments(payments) {
+  return payments.map(joinPayment);
 }
 
 // ============================================================
@@ -877,6 +950,166 @@ function createProductAction(payload) {
 }
 
 /**
+ * calculateAllocatedProfit : sum of Allocation wallet transactions for a batch.
+ */
+function calculateAllocatedProfit(batchId) {
+  return getRecords('WalletTransactions')
+    .filter(function (tx) {
+      return String(tx.batch_id || '') === String(batchId || '') && tx.transaction_type === 'Allocation';
+    })
+    .reduce(function (sum, tx) { return sum + Number(tx.amount || 0); }, 0);
+}
+
+/**
+ * calculateAdjustmentProfit : absolute sum of Adjustment transactions for a batch.
+ */
+function calculateAdjustmentProfit(batchId) {
+  return Math.abs(getRecords('WalletTransactions')
+    .filter(function (tx) {
+      return String(tx.batch_id || '') === String(batchId || '') && tx.transaction_type === 'Adjustment';
+    })
+    .reduce(function (sum, tx) { return sum + Number(tx.amount || 0); }, 0));
+}
+
+/**
+ * allocateIncrementalProfit : split an amount into Needs/Savings/Growth and
+ * create Allocation transactions. If triggerSaleId is provided, assign it as
+ * reference_id on each row for per-sale tracking.
+ */
+function allocateIncrementalProfit(batchId, amount, triggerSaleId) {
+  var batch = getRecordById('InventoryBatches', batchId);
+  if (!batch) return { needs: 0, savings: 0, growth: 0 };
+
+  var raw = Math.round(Number(amount || 0) * 100) / 100;
+  if (raw <= 0) return { needs: 0, savings: 0, growth: 0 };
+
+  var settings = getRecords('Settings')[0] || {};
+  var needsPct = Number(settings.needs_percentage || 0);
+  var savingsPct = Number(settings.savings_percentage || 0);
+  var growthPct = Number(settings.growth_percentage || 0);
+  if (needsPct <= 0 && savingsPct <= 0 && growthPct <= 0) {
+    needsPct = 40;
+    savingsPct = 35;
+    growthPct = 25;
+  }
+
+  var needs = Math.round(raw * (needsPct / 100) * 100) / 100;
+  var savings = Math.round(raw * (savingsPct / 100) * 100) / 100;
+  var growth = Math.round(raw * (growthPct / 100) * 100) / 100;
+
+  var sum = Math.round((needs + savings + growth) * 100) / 100;
+  if (sum !== raw) {
+    var diff = Math.round((raw - sum) * 100) / 100;
+    needs = Math.round((needs + diff) * 100) / 100;
+  }
+
+  var reason = triggerSaleId ? 'Allocation from sale ' + triggerSaleId : 'Allocation from ' + batch.batch_code;
+
+  createRecord('WalletTransactions', {
+    wallet: 'Needs',
+    transaction_type: 'Allocation',
+    batch_id: batchId,
+    reference_id: triggerSaleId || null,
+    amount: needs,
+    reason: reason,
+    created_by: 'System'
+  });
+  createRecord('WalletTransactions', {
+    wallet: 'Savings',
+    transaction_type: 'Allocation',
+    batch_id: batchId,
+    reference_id: triggerSaleId || null,
+    amount: savings,
+    reason: reason,
+    created_by: 'System'
+  });
+  createRecord('WalletTransactions', {
+    wallet: 'Growth',
+    transaction_type: 'Allocation',
+    batch_id: batchId,
+    reference_id: triggerSaleId || null,
+    amount: growth,
+    reason: reason,
+    created_by: 'System'
+  });
+
+  return { needs: needs, savings: savings, growth: growth };
+}
+
+/**
+ * reconcileBatch : ensure total allocated + adjustments matches final net profit.
+ * Idempotent — safe to call multiple times.
+ */
+function reconcileBatch(batchId) {
+  var refreshed = getRecordById('InventoryBatches', batchId);
+  if (!refreshed) return { needs: 0, savings: 0, growth: 0, adjustments: false };
+
+  var finalProfit = Math.round(Number(refreshed.net_profit || 0) * 100) / 100;
+  var allocated = calculateAllocatedProfit(batchId);
+  var adjustmentAbs = calculateAdjustmentProfit(batchId);
+  var delta = Math.round((finalProfit - (allocated - adjustmentAbs)) * 100) / 100;
+
+  if (Math.abs(delta) < 0.01) return { needs: 0, savings: 0, growth: 0, adjustments: false };
+
+  if (delta > 0.01) {
+    var result = allocateIncrementalProfit(batchId, delta, null);
+    return { needs: result.needs, savings: result.savings, growth: result.growth, adjustments: false };
+  }
+
+  var settings = getRecords('Settings')[0] || {};
+  var needsPct = Number(settings.needs_percentage || 0);
+  var savingsPct = Number(settings.savings_percentage || 0);
+  var growthPct = Number(settings.growth_percentage || 0);
+  if (needsPct <= 0 && savingsPct <= 0 && growthPct <= 0) {
+    needsPct = 40;
+    savingsPct = 35;
+    growthPct = 25;
+  }
+
+  var totalPct = needsPct + savingsPct + growthPct;
+  var needs = Math.round((delta * (needsPct / totalPct)) * 100) / 100;
+  var savings = Math.round((delta * (savingsPct / totalPct)) * 100) / 100;
+  var growth = Math.round((delta * (growthPct / totalPct)) * 100) / 100;
+
+  var sum = Math.round((needs + savings + growth) * 100) / 100;
+  var diff = Math.round((sum - delta) * 100) / 100;
+  var finalNeeds = Math.round((needs - diff) * 100) / 100;
+
+  if (finalNeeds > 0) {
+    createRecord('WalletTransactions', {
+      wallet: 'Needs',
+      transaction_type: 'Adjustment',
+      batch_id: batchId,
+      amount: finalNeeds,
+      reason: 'Reconciliation adjustment: ' + refreshed.batch_code,
+      created_by: 'System'
+    });
+  }
+  if (savings > 0) {
+    createRecord('WalletTransactions', {
+      wallet: 'Savings',
+      transaction_type: 'Adjustment',
+      batch_id: batchId,
+      amount: savings,
+      reason: 'Reconciliation adjustment: ' + refreshed.batch_code,
+      created_by: 'System'
+    });
+  }
+  if (growth > 0) {
+    createRecord('WalletTransactions', {
+      wallet: 'Growth',
+      transaction_type: 'Adjustment',
+      batch_id: batchId,
+      amount: growth,
+      reason: 'Reconciliation adjustment: ' + refreshed.batch_code,
+      created_by: 'System'
+    });
+  }
+
+  return { needs: 0, savings: 0, growth: 0, adjustments: true };
+}
+
+/**
  * recordSale : validate stock, decrement product, recompute parent batch.
  * Mirrors the Postgres record_sale RPC.
  */
@@ -929,14 +1162,64 @@ function recordSaleAction(params) {
     payment_method: productPayload.payment_method || 'Cash',
     reference_number: productPayload.reference_number || '',
     status: 'Completed',
-    notes: productPayload.notes || ''
+    notes: productPayload.notes || '',
+    amount_paid: 0,
+    balance: totalSale,
+    payment_status: 'pending'
   });
 
   updateRecord('Products', product.id, {
     current_stock: Math.max(Number(product.current_stock || 0) - quantity, 0)
   });
 
+  var newStock = Math.max(Number(product.current_stock || 0) - quantity, 0);
+  if (newStock <= Number(product.reorder_level || 0)) {
+    createNotification(
+      'low_stock',
+      'Low Stock Alert',
+      product.product_name + ' is down to ' + newStock + ' units (reorder level: ' + product.reorder_level + ')',
+      'product',
+      product.id,
+      'High'
+    );
+  }
+
+  if (totalSale >= 1000) {
+    createNotification(
+      'large_sale',
+      'Large Sale Recorded',
+      'Sale ' + sale.sale_code + ' for ' + totalSale.toFixed(2) + ' (' + quantity + 'x ' + product.product_name + ')',
+      'sale',
+      sale.id,
+      'Medium'
+    );
+  }
+
   recomputeBatch(batch.id);
+
+  var refreshedBatchAfter = getRecordById('InventoryBatches', batch.id);
+  var realizedProfit = Number(refreshedBatchAfter.net_profit || 0);
+  var allocatedProfit = calculateAllocatedProfit(batch.id);
+  var availableProfit = Math.round((realizedProfit - allocatedProfit) * 100) / 100;
+
+  if (availableProfit > 0.01) {
+    var lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(10000);
+      var recheckedAllocated = calculateAllocatedProfit(batch.id);
+      var recheckedAvailable = Math.round((realizedProfit - recheckedAllocated) * 100) / 100;
+      if (recheckedAvailable > 0.01) {
+        var alreadyDid = getRecords('WalletTransactions').some(function (tx) {
+          return String(tx.batch_id || '') === String(batch.id) && String(tx.reference_id || '') === String(sale.id);
+        });
+        if (!alreadyDid) {
+          allocateIncrementalProfit(batch.id, recheckedAvailable, sale.id);
+        }
+      }
+    } catch (e) {
+      console.log('Allocation lock failed: ' + e.message);
+    }
+  }
 
   logActivity('System', 'Sale Recorded', 'Sales', sale.id,
     'Recorded sale ' + sale.sale_code + ' for ' + quantity + ' unit(s)');
@@ -952,7 +1235,8 @@ function recordSaleAction(params) {
 }
 
 /**
- * voidSale : restore stock, mark voided, recompute parent batch.
+ * voidSale : restore stock, mark voided, recompute parent batch. If sale has
+ * partial payments, create a refund payment and reset sale balance fields.
  */
 function voidSaleAction(saleId) {
   const sale = getRecordById('Sales', saleId);
@@ -970,9 +1254,38 @@ function voidSaleAction(saleId) {
     });
   }
 
+  if (Number(sale.amount_paid || 0) > 0) {
+    const refundAmount = -Number(sale.amount_paid || 0);
+    createRecord('Payments', {
+      sale_id: sale.id,
+      customer_id: sale.customer_id || '',
+      amount: refundAmount,
+      payment_method: 'Refund',
+      payment_date: new Date().toISOString(),
+      notes: 'Refund for voided sale ' + sale.sale_code,
+      created_at: new Date().toISOString()
+    });
+    updateRecord('Sales', sale.id, {
+      amount_paid: 0,
+      balance: Number(sale.total_sale || 0),
+      payment_status: 'pending'
+    });
+    logActivity('System', 'Sale Voided with Refund', 'Sales', saleId,
+      'Voided sale ' + sale.sale_code + ' and refunded payment of ' + Math.abs(refundAmount));
+  }
+
   updateRecord('Sales', saleId, { status: 'Voided' });
 
   recomputeBatch(sale.batch_id);
+
+  createNotification(
+    'sale_voided',
+    'Sale Voided',
+    'Sale ' + sale.sale_code + ' has been voided. Stock has been restored.',
+    'sale',
+    saleId,
+    'Medium'
+  );
 
   logActivity('System', 'Sale Voided', 'Sales', saleId, 'Voided sale ' + sale.sale_code);
 
@@ -987,75 +1300,134 @@ function voidSaleAction(saleId) {
 }
 
 /**
- * recomputeBatch : recompute stored aggregates (revenue, profit, net, roi,
- * completion, remaining stock, status) from products + sales + expenses.
+ * recordPaymentAction : create a payment, revalidate linked sale balances.
  */
+function recordPaymentAction(params) {
+  const saleId = params.sale_id;
+  const customerId = params.customer_id || '';
+  const amount = Number(params.amount || 0);
+  const paymentMethod = params.payment_method || 'Cash';
+  const paymentDate = params.payment_date || new Date().toISOString();
+  const notes = params.notes || '';
+
+  if (amount <= 0) {
+    return { success: false, message: 'Payment amount must be positive', code: 'VALIDATION_ERROR' };
+  }
+
+  const sale = saleId ? getRecordById('Sales', saleId) : null;
+  if (saleId && !sale) {
+    return { success: false, message: 'Sale not found', code: 'SALE_NOT_FOUND' };
+  }
+  if (sale && sale.status !== 'Completed') {
+    return { success: false, message: 'Only completed sales can receive payments', code: 'VALIDATION_ERROR' };
+  }
+
+  const currentPaid = Number(sale?.amount_paid || 0);
+  const totalSale = Number(sale?.total_sale || 0);
+  const newPaid = currentPaid + amount;
+  const newBalance = totalSale - newPaid;
+
+  if (sale && newBalance < -0.01) {
+    return { success: false, message: 'Payment exceeds remaining balance', code: 'VALIDATION_ERROR' };
+  }
+
+  const payment = createRecord('Payments', {
+    sale_id: saleId || '',
+    customer_id: customerId || sale?.customer_id || '',
+    amount: amount,
+    payment_method: paymentMethod,
+    payment_date: paymentDate,
+    notes: notes,
+    created_at: new Date().toISOString()
+  });
+
+  if (saleId && sale) {
+    updateRecord('Sales', saleId, {
+      amount_paid: newPaid,
+      balance: Math.max(newBalance, 0),
+      payment_status: newBalance <= 0.01 ? 'paid' : 'partial'
+    });
+
+    if (newBalance <= 0.01) {
+      createNotification(
+        'payment_cleared',
+        'Balance Cleared',
+        'Sale ' + sale.sale_code + ' has been fully paid (' + amount.toFixed(2) + ' via ' + paymentMethod + ')',
+        'sale',
+        saleId,
+        'High'
+      );
+    } else {
+      createNotification(
+        'payment_recorded',
+        'Payment Recorded',
+        'Payment of ' + amount.toFixed(2) + ' received for sale ' + sale.sale_code + ' (remaining: ' + newBalance.toFixed(2) + ')',
+        'sale',
+        saleId,
+        'Low'
+      );
+    }
+  } else {
+    createNotification(
+      'payment_recorded',
+      'Payment Recorded',
+      'Unallocated payment of ' + amount.toFixed(2) + ' received from customer',
+      'payment',
+      payment.id,
+      'Low'
+    );
+  }
+
+  logActivity('System', 'Payment Recorded', 'Payments', payment.id,
+    'Recorded payment of ' + amount + ' for sale ' + (sale?.sale_code || saleId));
+
+  return {
+    success: true,
+    message: 'Payment recorded',
+    data: {
+      payment: joinPayment(payment),
+      sale: saleId ? joinSale(getRecordById('Sales', saleId)) : null
+    }
+  };
+}
+
 /**
- * allocateBatchProfit : single source of truth for splitting a batch's net
- * profit into the Needs/Savings/Growth wallets. Once a batch is Completed or
- * Archived it must NOT be re-allocated, so callers can safely invoke this
- * without creating duplicate Allocation rows.
+ * backfillPaymentsAction : one-time backfill of Sales payment fields for
+ * existing data. Run manually from the Apps Script editor or menu.
+ */
+function backfillPaymentsAction() {
+  const sales = getRecords('Sales');
+  let updated = 0;
+  sales.forEach(function (sale) {
+    const current = getRecordById('Sales', sale.id);
+    if (!current) return;
+    const amountPaid = Number(current.amount_paid || 0);
+    const totalSale = Number(current.total_sale || 0);
+    const balance = totalSale - amountPaid;
+    let paymentStatus = 'pending';
+    if (amountPaid > 0 && balance <= 0.01) paymentStatus = 'paid';
+    else if (amountPaid > 0) paymentStatus = 'partial';
+
+    updateRecord('Sales', sale.id, {
+      amount_paid: amountPaid,
+      balance: Math.max(balance, 0),
+      payment_status: paymentStatus
+    });
+    updated++;
+  });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ss.toast('Backfilled ' + updated + ' sales with payment fields.');
+  return { success: true, updated: updated };
+}
+
+/**
+ * allocateBatchProfit : legacy wrapper — delegates to reconcileBatch to preserve
+ * external references while adopting the continuous profit realization model.
  */
 function allocateBatchProfit(batchId) {
-  const batch = getRecordById('InventoryBatches', batchId);
-  if (!batch) return { needs: 0, savings: 0, growth: 0 };
-
-  const net = Number(batch.net_profit || 0);
-  if (net <= 0) return { needs: 0, savings: 0, growth: 0 };
-
-  // Once-only guard based on tangible proof: if Allocation rows already exist
-  // for this batch, do not create duplicates. This is robust to call order —
-  // recomputeBatch writes status='Completed' to the sheet BEFORE calling us, so
-  // a status-based guard would always see 'Completed' and block the allocation.
-  const alreadyAllocated = getRecords('WalletTransactions').some(function (tx) {
-    return String(tx.batch_id || '') === String(batchId) && tx.transaction_type === 'Allocation';
-  });
-  if (alreadyAllocated) {
-    return { needs: 0, savings: 0, growth: 0 };
-  }
-
-  const settings = getRecords('Settings')[0] || {};
-  let needsPct = Number(settings.needs_percentage || 0);
-  let savingsPct = Number(settings.savings_percentage || 0);
-  let growthPct = Number(settings.growth_percentage || 0);
-
-  // Default 40/35/25 when no percentages are configured.
-  if (needsPct <= 0 && savingsPct <= 0 && growthPct <= 0) {
-    needsPct = 40;
-    savingsPct = 35;
-    growthPct = 25;
-  }
-
-  const needs = net * (needsPct / 100);
-  const savings = net * (savingsPct / 100);
-  const growth = net * (growthPct / 100);
-
-  createRecord('WalletTransactions', {
-    wallet: 'Needs',
-    transaction_type: 'Allocation',
-    batch_id: batchId,
-    amount: needs,
-    reason: 'Allocation from ' + batch.batch_code,
-    created_by: 'System'
-  });
-  createRecord('WalletTransactions', {
-    wallet: 'Savings',
-    transaction_type: 'Allocation',
-    batch_id: batchId,
-    amount: savings,
-    reason: 'Allocation from ' + batch.batch_code,
-    created_by: 'System'
-  });
-  createRecord('WalletTransactions', {
-    wallet: 'Growth',
-    transaction_type: 'Allocation',
-    batch_id: batchId,
-    amount: growth,
-    reason: 'Allocation from ' + batch.batch_code,
-    created_by: 'System'
-  });
-
-  return { needs: needs, savings: savings, growth: growth };
+  var result = reconcileBatch(batchId);
+  return { needs: result.needs, savings: result.savings, growth: result.growth };
 }
 
 function recomputeBatch(batchId) {
@@ -1134,16 +1506,15 @@ function recomputeBatch(batchId) {
     status: status
   });
 
-  // Allocate profit exactly once, on the run that flips the batch to Completed
-  // (e.g. auto-complete by selling out). The proof-based guard in
-  // allocateBatchProfit prevents duplicates when closeBatchAction also runs.
+  // Reconcile profit on the transition to Completed (e.g. auto-complete by selling out).
+  // reconcileBatch handles incremental allocations and adjustments idempotently.
   if (!wasCompleted && status === 'Completed' && netProfit > 0) {
-    const allocated = allocateBatchProfit(batchId);
-    if (allocated.needs || allocated.savings || allocated.growth) {
+    const reconciled = reconcileBatch(batchId);
+    if (reconciled.needs || reconciled.savings || reconciled.growth || reconciled.adjustments) {
       createRecord('Notifications', {
         type: 'batch_completed',
         title: 'Batch Completed',
-        message: batch.batch_code + ' sold out. Net profit allocated to wallets.',
+        message: batch.batch_code + ' sold out. Profit reconciled to wallets.',
         reference_type: 'batch',
         reference_id: batchId,
         priority: 'Medium',
@@ -1172,29 +1543,31 @@ function closeBatchAction(batchId) {
   const refreshed = getRecordById('InventoryBatches', batchId);
   const net = Number(refreshed.net_profit || 0);
 
-  const allocated = allocateBatchProfit(batchId);
-  const needs = allocated.needs;
-  const savings = allocated.savings;
-  const growth = allocated.growth;
+  const reconciled = reconcileBatch(batchId);
+  const needs = reconciled.needs;
+  const savings = reconciled.savings;
+  const growth = reconciled.growth;
 
   updateRecord('InventoryBatches', batchId, { status: 'Completed' });
 
-  createRecord('Notifications', {
-    type: 'batch_completed',
-    title: 'Batch Completed',
-    message: batch.batch_code + ' has been closed. Net profit allocated to wallets.',
-    reference_type: 'batch',
-    reference_id: batchId,
-    priority: 'Medium',
-    read: false
-  });
+  if (reconciled.adjustments || reconciled.needs || reconciled.savings || reconciled.growth) {
+    createRecord('Notifications', {
+      type: 'batch_completed',
+      title: 'Batch Completed',
+      message: batch.batch_code + ' has been closed. Profit reconciled to wallets.',
+      reference_type: 'batch',
+      reference_id: batchId,
+      priority: 'Medium',
+      read: false
+    });
+  }
 
   logActivity('System', 'Batch Closed', 'Inventory', batchId,
     'Closed ' + batch.batch_code + ' with net profit ' + net);
 
   return {
     success: true,
-    message: 'Batch closed and profit allocated',
+    message: 'Batch closed and profit reconciled',
     data: {
       batch: joinBatch(getRecordById('InventoryBatches', batchId)),
       net_profit: net,
@@ -1234,6 +1607,17 @@ function createExpenseAction(params) {
       reason: 'Business expense: ' + input.expense_name,
       created_by: 'System'
     });
+  }
+
+  if (Number(input.amount || 0) >= 500) {
+    createNotification(
+      'large_expense',
+      'Large Expense Recorded',
+      'Expense ' + input.expense_name + ' for ' + Number(input.amount || 0).toFixed(2),
+      'expense',
+      expense.id,
+      'Medium'
+    );
   }
 
   logActivity('System', 'Expense Added', 'Expenses', expense.id,
@@ -1283,6 +1667,19 @@ function createSampleBatch() {
   );
 
   return batchResult;
+}
+
+function createNotification(type, title, message, referenceType, referenceId, priority) {
+  createRecord('Notifications', {
+    type: type || 'info',
+    title: title || 'Notification',
+    message: message || '',
+    reference_type: referenceType || '',
+    reference_id: referenceId || '',
+    priority: priority || 'Medium',
+    read: false,
+    created_at: new Date().toISOString()
+  });
 }
 
 function markNotificationReadAction(id) {

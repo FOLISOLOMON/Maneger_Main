@@ -25,7 +25,7 @@ import { ConfirmDialog } from '../../components/common/StatCard';
 import { useFabRegistration } from '../../components/layout/AppLayout';
 import { useToast } from '../../components/common/Toast';
 import { BATCH_STATUS_META, PRODUCT_CATEGORIES } from '../../constants';
-import { batchHealth, profitMargin } from '../../services/calculations';
+import { batchHealth, profitMargin, realizedProfit, unrealizedProfit, availableProfit } from '../../services/calculations';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { BatchWithSupplier, Product } from '../../types';
 
@@ -39,6 +39,7 @@ export function BatchDetail() {
   const products = snapshot?.products;
   const sales = snapshot?.sales;
   const expenses = snapshot?.expenses;
+  const walletTx = snapshot?.walletTx;
   const [tab, setTab] = useState<Tab>('overview');
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [editProductId, setEditProductId] = useState<string | null>(null);
@@ -63,6 +64,10 @@ export function BatchDetail() {
     const ageDays = batch.purchase_date ? differenceInDays(new Date(), parseISO(batch.purchase_date)) : 0;
     return batchHealth(batch, ageDays);
   }, [batch]);
+
+  const realized = batch ? realizedProfit([batch]) : 0;
+  const unrealized = products ? unrealizedProfit(products) : 0;
+  const available = availableProfit(realized, walletTx ?? []);
 
   const tabs: { key: Tab; label: string; icon: LucideIcon }[] = [
     { key: 'overview', label: 'Overview', icon: Package },
@@ -204,6 +209,18 @@ export function BatchDetail() {
                     {formatMoney(batch.net_profit, currencySymbol)}
                   </span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-secondary">Realized Profit</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(realized, currencySymbol)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-secondary">Unrealized Profit</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(unrealized, currencySymbol)}</span>
+                </div>
+                <div className="flex justify-between text-sm pt-2 border-t border-border">
+                  <span className="font-semibold text-text-secondary">Available Profit</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(available, currencySymbol)}</span>
+                </div>
               </div>
             </Card>
           </div>
@@ -219,7 +236,7 @@ export function BatchDetail() {
             <Card padding="md">
               <p className="text-xs text-text-muted font-semibold uppercase tracking-wide mb-2">Health signals</p>
               <div className="flex flex-wrap gap-2">
-                {health.reasons.map((r, i) => (
+                {health.reasons.map((r: string, i: number) => (
                   <Badge key={i} color="bg-surface-alt text-text-secondary">{r}</Badge>
                 ))}
               </div>

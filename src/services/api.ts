@@ -24,6 +24,7 @@ import type {
   WalletName,
   WalletTransaction,
   ApiRecord,
+  PaymentWithRelations,
 } from '../types';
 
 // Defensive normalization: the Sheets backend can return a single object, null,
@@ -240,6 +241,26 @@ export async function createCustomer(input: {
   return customer;
 }
 
+// ---------- Payments ----------
+
+export async function fetchPayments(limit?: number, offset: number = 0): Promise<PaymentWithRelations[]> {
+  const payments = asArray<PaymentWithRelations>(await sheetsAction('listPayments'));
+  const start = offset || 0;
+  const end = limit ? start + limit : payments.length;
+  return payments.slice(start, end);
+}
+
+export async function createPayment(input: {
+  sale_id?: string | null;
+  customer_id: string;
+  amount: number;
+  payment_method: string;
+  payment_date?: string;
+  notes?: string | null;
+}): Promise<{ success: boolean; message: string; data?: { payment: PaymentWithRelations; sale: SaleWithRelations | null } }> {
+  return (await sheetsAction('recordPayment', input)) as { success: boolean; message: string; data?: { payment: PaymentWithRelations; sale: SaleWithRelations | null } };
+}
+
 // ---------- Notifications ----------
 
 export async function markNotificationRead(id: string): Promise<{ success: boolean }> {
@@ -248,6 +269,17 @@ export async function markNotificationRead(id: string): Promise<{ success: boole
 
 export async function markAllNotificationsRead(): Promise<{ success: boolean; count: number }> {
   return (await sheetsAction('markAllNotificationsRead')) as { success: boolean; count: number };
+}
+
+export async function createNotification(payload: {
+  type: string;
+  title: string;
+  message: string;
+  reference_type?: string;
+  reference_id?: string;
+  priority?: string;
+}): Promise<{ success: boolean; notification?: Notification }> {
+  return (await sheetsAction('createNotification', { payload })) as { success: boolean; notification?: Notification };
 }
 
 // ---------- Activity logs ----------
@@ -271,6 +303,7 @@ export interface DashboardSnapshot {
   sales: SaleWithRelations[];
   expenses: ExpenseWithBatch[];
   walletTx: WalletTransaction[];
+  payments: PaymentWithRelations[];
   notifications: Notification[];
 }
 
@@ -293,6 +326,7 @@ export interface SalesSnapshot {
   products: Product[];
   customers: Customer[];
   batches: InventoryBatch[];
+  payments: PaymentWithRelations[];
 }
 
 export interface WalletsSnapshot {

@@ -10,11 +10,14 @@ import { clsx } from 'clsx';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart3, Menu, X,
   Bell, Plus, Users, Truck, Receipt, Wallet, Settings, type LucideIcon,
+  Wifi, WifiOff,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useNotificationsSnapshot } from '../../hooks/queries';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { NAV_ITEMS, MORE_ITEMS } from '../../constants';
 import { logos } from '../../theme/designTokens';
+import { getSyncStatus } from '../../services/syncQueue';
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Package, ShoppingCart, BarChart3, Menu, X,
@@ -35,6 +38,12 @@ const fabListeners = new Set<() => void>();
 export function setFab(config: FabConfig | null) {
   currentFab = config;
   fabListeners.forEach((l) => l());
+}
+
+export function triggerFab() {
+  if (currentFab?.onClick) {
+    currentFab.onClick();
+  }
 }
 
 export function useFabRegistration(config: FabConfig | null) {
@@ -61,6 +70,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const fab = useFabState();
+
+  useKeyboardShortcuts({
+    '/': () => {
+      const input = document.querySelector('[data-search] input') as HTMLInputElement | null;
+      input?.focus();
+    },
+    'n': () => triggerFab(),
+  });
 
   // Close the More sheet on navigation
   useEffect(() => { setMoreOpen(false); }, [location.pathname]);
@@ -202,6 +219,7 @@ function Header({ onMore }: { onMore: () => void }) {
   const { data: snapshot } = useNotificationsSnapshot();
   const notifications = snapshot?.notifications;
   const unread = (notifications ?? []).filter((n) => !n.read).length;
+  const sync = getSyncStatus();
 
   return (
     <header className="sticky top-0 z-20 glass border-b border-border">
@@ -218,6 +236,17 @@ function Header({ onMore }: { onMore: () => void }) {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            className={clsx(
+              'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-colors',
+              sync.isOnline ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'
+            )}
+            aria-label={sync.isOnline ? 'Online' : 'Offline'}
+            title={sync.isOnline ? 'Online' : `${sync.pendingCount} pending`}
+          >
+            {sync.isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+            {sync.isOnline ? 'Online' : `Offline${sync.pendingCount > 0 ? ` • ${sync.pendingCount}` : ''}`}
+          </button>
           <Link
             to="/notifications"
             className="relative w-10 h-10 rounded-xl flex items-center justify-center text-text-secondary hover:bg-surface-alt hover:text-text-primary transition-colors touch-target"

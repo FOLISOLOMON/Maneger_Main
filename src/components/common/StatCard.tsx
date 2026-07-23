@@ -4,6 +4,7 @@
 // Colors use the brand design tokens.
 
 import type { ComponentType, ReactNode } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { Search, X, ArrowUpRight, ArrowDownRight, type LucideProps } from 'lucide-react';
 import { Card } from './Card';
@@ -49,16 +50,34 @@ interface SearchBarProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  recent?: string[];
+  onClearRecent?: () => void;
 }
 
-export function SearchBar({ value, onChange, placeholder = 'Search…', className }: SearchBarProps) {
+export function SearchBar({ value, onChange, placeholder = 'Search…', className, recent, onClearRecent }: SearchBarProps) {
+  const [focused, setFocused] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!focused) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setFocused(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [focused]);
+
+  const showRecent = focused && !value && recent && recent.length > 0;
+
   return (
-    <div className={clsx('relative', className)}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+    <div ref={ref} className={clsx('relative', className)}>
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none z-10" />
       <input
+        data-search
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
         placeholder={placeholder}
         className="w-full h-11 pl-9 pr-9 rounded-xl border border-border bg-surface text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none transition-colors"
       />
@@ -70,6 +89,27 @@ export function SearchBar({ value, onChange, placeholder = 'Search…', classNam
         >
           <X className="w-4 h-4" />
         </button>
+      )}
+      {showRecent && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-xl shadow-lg z-20 py-1.5 animate-fade-in">
+          <div className="flex items-center justify-between px-3 pb-1.5">
+            <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wide">Recent</span>
+            {onClearRecent && (
+              <button onClick={onClearRecent} className="text-[11px] font-semibold text-accent hover:underline">
+                Clear
+              </button>
+            )}
+          </div>
+          {recent.map((q) => (
+            <button
+              key={q}
+              onMouseDown={(e) => { e.preventDefault(); onChange(q); setFocused(false); }}
+              className="w-full text-left text-sm text-text-secondary hover:bg-surface-alt hover:text-text-primary px-3 py-2 transition-colors"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

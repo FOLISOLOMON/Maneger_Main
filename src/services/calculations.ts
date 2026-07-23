@@ -6,12 +6,14 @@
 import type {
   BatchHealth,
   BatchHealthResult,
-  Customer,
   CustomerStats,
   Expense,
   InventoryBatch,
+  Payment,
+  PaymentStatus,
   Product,
   Sale,
+  SaleWithRelations,
   SupplierStats,
   WalletBalance,
   WalletName,
@@ -196,6 +198,30 @@ export function customerStats(customerId: string, sales: Sale[]): CustomerStats 
   };
 }
 
+export function totalReceivables(sales: Sale[]): number {
+  return sales
+    .filter((s) => s.payment_status !== 'paid' && s.status === 'Completed')
+    .reduce((sum, s) => sum + (Number(s.balance) || 0), 0);
+}
+
+export function customerBalance(customerId: string, sales: Sale[], payments: Payment[]): number {
+  const saleBalances = sales
+    .filter((s) => s.customer_id === customerId && s.status === 'Completed')
+    .reduce((sum, s) => sum + (Number(s.balance) || 0), 0);
+  const unallocated = payments
+    .filter((p) => p.customer_id === customerId && !p.sale_id)
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  return Math.max(saleBalances - unallocated, 0);
+}
+
+export function saleBalance(sale: Sale): { amountPaid: number; balance: number; status: PaymentStatus } {
+  return {
+    amountPaid: Number(sale.amount_paid || 0),
+    balance: Number(sale.balance || sale.total_sale || 0),
+    status: sale.payment_status || 'pending',
+  };
+}
+
 // ---------- Supplier stats (computed) ----------
 
 export function supplierStats(
@@ -255,4 +281,48 @@ export function filterExpensesToday(expenses: Expense[]): Expense[] {
 
 export function countLowStock(products: Product[], threshold: number): number {
   return products.filter((p) => isLowStock(p, threshold)).length;
+}
+
+// ---------- Profit realization (profit reinvestment spec) ----------
+
+export function realizedProfit(batches: InventoryBatch[]): number {
+  return batches
+    .filter((b) => Number(b.gross_revenue || 0) > 0)
+    .reduce((sum, b) => sum + Number(b.net_profit || 0), 0);
+}
+
+export function unrealizedProfit(products: Product[]): number {
+  return products.reduce((sum, p) => {
+    const margin = Number(p.selling_price || 0) - Number(p.cost_price || 0);
+    return sum + margin * Number(p.current_stock || 0);
+  }, 0);
+}
+
+export function availableProfit(realized: number, walletTx: WalletTransaction[]): number {
+  const allocated = (walletTx ?? [])
+    .filter((t) => t.transaction_type === 'Allocation')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  return Math.round((realized - allocated) * 100) / 100;
+}
+
+export function pendingProfit(batches: InventoryBatch[], products: Product[]): number {
+  const activeBatchIds = new Set(
+    batches
+      .filter((b) => !['Completed', 'Archived'].includes(b.status))
+      .map((b) => b.id),
+  );
+  const remaining = products.filter((p) => activeBatchIds.has(p.batch_id));
+  return unrealizedProfit(remaining);
+}
+
+export function agingReceivables(sales: SaleWithRelations[], limit = 5) {
+  const now = Date.now();
+  return sales
+    .filter((s) => s.payment_status !== 'paid' && s.status === 'Completed')
+    .map((s) => ({
+      ...s,
+      daysSinceSale: Math.floor((now - new Date(s.sale_date).getTime()) / (1000 * 60 * 60 * 24)),
+    }))
+    .sort((a, b) => (Number(b.balance) || 0) - (Number(a.balance) || 0))
+    .slice(0, limit);
 }

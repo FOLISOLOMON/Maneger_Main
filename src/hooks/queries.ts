@@ -7,11 +7,8 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../services/api';
 import type {
-  Customer,
-  InventoryBatch,
   Product,
   Settings,
-  Supplier,
   WalletName,
 } from '../types';
 
@@ -33,6 +30,7 @@ export const qk = {
   salesSnapshot: ['sales-snapshot'] as const,
   walletsSnapshot: ['wallets-snapshot'] as const,
   notificationsSnapshot: ['notifications-snapshot'] as const,
+  payments: ['payments'] as const,
 };
 
 // ---------- Settings ----------
@@ -435,6 +433,59 @@ export function useCreateCustomer() {
         if (!old) return old;
         return [data, ...old];
       });
+    },
+  });
+}
+
+// ---------- Payments ----------
+
+export function usePayments(limit?: number, offset: number = 0) {
+  return useQuery({
+    queryKey: limit ? [...qk.payments, 'limited', limit, offset] : qk.payments,
+    queryFn: () => api.fetchPayments(limit, offset),
+    staleTime: 5_000,
+  });
+}
+
+export function useCreatePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.createPayment,
+    onSuccess: (result) => {
+      const payment = result.data?.payment;
+      const sale = result.data?.sale;
+      if (!payment) return;
+
+      qc.setQueryData(qk.payments, (old: any) => {
+        if (!old) return old;
+        return [payment, ...old];
+      });
+
+      if (sale) {
+        qc.setQueryData(qk.salesSnapshot, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            sales: old.sales.map((s: any) => s.id === sale.id ? { ...s, ...sale } : s),
+          };
+        });
+        qc.setQueryData(qk.dashboard, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            sales: old.sales.map((s: any) => s.id === sale.id ? { ...s, ...sale } : s),
+          };
+        });
+        qc.setQueryData(qk.sales, (old: any) => {
+          if (!old) return old;
+          return old.map((s: any) => s.id === sale.id ? { ...s, ...sale } : s);
+        });
+      }
+
+      qc.invalidateQueries({ queryKey: qk.salesSnapshot, exact: false });
+      qc.invalidateQueries({ queryKey: qk.dashboard, exact: false });
+      qc.invalidateQueries({ queryKey: qk.customers, exact: false });
+      qc.invalidateQueries({ queryKey: qk.sales, exact: false });
     },
   });
 }

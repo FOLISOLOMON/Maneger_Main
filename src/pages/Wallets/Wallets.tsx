@@ -160,6 +160,7 @@ export function Wallets() {
                     <p className="text-xs text-text-muted">
                       {t.transaction_code} · {formatRelative(t.created_at)}
                       {t.batch_id && ' · batch allocation'}
+                      {t.transaction_type === 'Allocation' && t.reference_id && ` · sale ${t.reference_id}`}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">

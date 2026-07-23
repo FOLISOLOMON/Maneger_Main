@@ -15,7 +15,8 @@ import { useDashboardSnapshot } from '../../hooks/queries';
 import type { SaleWithRelations } from '../../types';
 import {
   walletBalances, businessCash, filterSalesToday, filterExpensesToday,
-  countLowStock, saleTotalSale,
+  countLowStock, saleTotalSale, realizedProfit, unrealizedProfit, availableProfit, pendingProfit, totalReceivables,
+  agingReceivables,
 } from '../../services/calculations';
 import { formatMoney, formatMoneyCompact, formatRelative } from '../../utils/format';
 import { Card, SectionHeader, EmptyState, LoadingState, ProgressBar, Badge } from '../../components/common/Card';
@@ -63,6 +64,9 @@ export function Dashboard() {
     const todaySales = filterSalesToday(allSales);
     const todayExpenses = filterExpensesToday(allExpenses);
     const wallets = walletBalances(allTx);
+    const realized = realizedProfit(allBatches);
+    const unrealized = unrealizedProfit(allProducts);
+    const available = availableProfit(realized, allTx);
 
     return {
       todaySalesCount: todaySales.length,
@@ -74,6 +78,11 @@ export function Dashboard() {
       activeBatches: allBatches.filter((b) => ['Draft', 'Purchased', 'Selling', 'Almost Finished'].includes(b.status)).length,
       completedBatches: allBatches.filter((b) => b.status === 'Completed').length,
       lowStock: countLowStock(allProducts, settings?.low_stock_threshold ?? 5),
+      realizedProfit: realized,
+      unrealizedProfit: unrealized,
+      availableProfit: available,
+      pendingProfit: pendingProfit(allBatches, allProducts),
+      totalReceivables: totalReceivables(allSales),
     };
   }, [sales, expenses, products, batches, walletTx, settings]);
 
@@ -101,7 +110,7 @@ export function Dashboard() {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <StatCard
           icon={ShoppingBag}
           label="Today's Sales"
@@ -134,7 +143,77 @@ export function Dashboard() {
           iconBg="bg-info-bg"
           accent="text-info"
         />
+        <StatCard
+          icon={Wallet}
+          label="Outstanding Receivables"
+          value={formatMoney(kpis.totalReceivables, currencySymbol)}
+          hint="From unpaid / partial sales"
+          iconBg="bg-warning-bg"
+          accent="text-warning"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Realized Profit"
+          value={formatMoney(kpis.realizedProfit, currencySymbol)}
+          hint="All batches"
+          iconBg="bg-success-bg"
+          accent="text-success"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Available Profit"
+          value={formatMoney(kpis.availableProfit, currencySymbol)}
+          hint="Unallocated"
+          iconBg="bg-info-bg"
+          accent="text-info"
+        />
+        <StatCard
+          icon={PiggyBank}
+          label="Pending Profit"
+          value={formatMoney(kpis.pendingProfit, currencySymbol)}
+          hint="From active stock"
+          iconBg="bg-accent/10"
+          accent="text-accent"
+        />
       </div>
+
+      {/* Aging receivables */}
+      {(() => {
+        const items = agingReceivables(sales ?? [], 5);
+        if (items.length === 0) return null;
+        return (
+          <Card padding="md">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">Aging receivables</h3>
+                <p className="text-xs text-text-muted">{items.length} open {items.length === 1 ? 'balance' : 'balances'}</p>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-text-muted uppercase tracking-wide">
+                    <th className="pb-2 pr-4">Customer</th>
+                    <th className="pb-2 pr-4">Sale code</th>
+                    <th className="pb-2 pr-4 text-right">Balance</th>
+                    <th className="pb-2 text-right">Days</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((s) => (
+                    <tr key={s.id} className="border-t border-border">
+                      <td className="py-2 pr-4 font-medium text-text-primary">{s.customer?.customer_name ?? 'Walk-in'}</td>
+                      <td className="py-2 pr-4 text-text-secondary font-mono text-xs">{s.sale_code}</td>
+                      <td className="py-2 pr-4 text-right font-semibold tabular-nums text-warning">{formatMoney(s.balance, currencySymbol)}</td>
+                      <td className="py-2 text-right text-text-muted tabular-nums">{s.daysSinceSale}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Wallet cards */}
       <div>
@@ -232,7 +311,7 @@ export function Dashboard() {
         <div>
           <SectionHeader title="Recent Sales" action={<Link to="/sales" className="text-xs font-semibold text-accent hover:underline">All</Link>} />
           {recentSales.length === 0 ? (
-            <Card padding="md"><EmptyState icon={<ShoppingBag className="w-7 h-7" />} title="No sales yet" description="Record your first sale to see it here." /></Card>
+            <Card padding="md"><EmptyState icon={<ShoppingBag className="w-7 h-7" />} title="No sales yet" description="Record your first sale to see it here." hint="Sales will appear here once you start selling." /></Card>
           ) : (
             <div className="space-y-2">
               {recentSales.map((s) => (
@@ -257,7 +336,7 @@ export function Dashboard() {
         <div>
           <SectionHeader title="Recent Expenses" action={<Link to="/expenses" className="text-xs font-semibold text-accent hover:underline">All</Link>} />
           {recentExpenses.length === 0 ? (
-            <Card padding="md"><EmptyState icon={<Receipt className="w-7 h-7" />} title="No expenses yet" description="Record an expense to track spending." /></Card>
+            <Card padding="md"><EmptyState icon={<Receipt className="w-7 h-7" />} title="No expenses yet" description="Record an expense to track spending." hint="Expenses will appear here once you add them." /></Card>
           ) : (
             <div className="space-y-2">
               {recentExpenses.map((e) => (

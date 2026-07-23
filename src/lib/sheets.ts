@@ -14,20 +14,24 @@ if (!apiUrl) {
   throw new Error('Missing Sheets API URL. Check .env for VITE_SHEETS_API_URL.');
 }
 
-// Generic request helper. Everything is a GET; complex params (payloads) are
+// Generic request helper. Everything is a GET by default; complex params (payloads) are
 // JSON-encoded into a single `params` query string. The Sheets backend returns
 // arbitrary JSON, so the raw result is `unknown` until the service layer (api.ts)
 // casts it to a concrete domain type.
-async function request(action: string, params: ApiRecord = {}): Promise<unknown> {
+async function request(action: string, params: ApiRecord = {}, options?: { method?: string; body?: unknown }): Promise<unknown> {
+  const method = options?.method || 'GET';
   const url = new URL(apiUrl);
   url.searchParams.set('action', action);
   if (apiKey) url.searchParams.set('key', apiKey);
-  if (Object.keys(params).length > 0) {
-    // JSON-encode the params object so nested payloads survive the query string.
+  if (method === 'GET' && Object.keys(params).length > 0) {
     url.searchParams.set('params', JSON.stringify(params));
   }
 
-  const res = await fetch(url.toString(), { method: 'GET' });
+  const res = await fetch(url.toString(), {
+    method,
+    headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+    body: method === 'POST' && options?.body ? JSON.stringify(options.body) : undefined,
+  });
   return unwrap(await res.json());
 }
 
@@ -69,4 +73,8 @@ export function sheetsDelete(sheet: string, id: string): Promise<boolean> {
 
 export function sheetsAction(action: string, params: ApiRecord = {}): Promise<unknown> {
   return request(action, params);
+}
+
+export function postAction(action: string, params: ApiRecord = {}): Promise<unknown> {
+  return request(action, params, { method: 'POST', body: { action, ...params } });
 }

@@ -34,6 +34,11 @@ export type PaymentMethod =
 export type DiscountType = 'Amount' | 'Percent';
 
 export type BatchHealth = 'Excellent' | 'Good' | 'Average' | 'Poor' | 'Critical';
+export interface BatchHealthResult {
+  health: BatchHealth;
+  score: number;
+  reasons: string[];
+}
 
 export interface Settings {
   id: string;
@@ -131,6 +136,8 @@ export interface Customer {
   updated_at: string;
 }
 
+export type PaymentStatus = 'pending' | 'partial' | 'paid';
+
 export interface Sale {
   id: string;
   sale_code: string;
@@ -151,6 +158,9 @@ export interface Sale {
   status: SaleStatus;
   notes: string | null;
   created_at: string;
+  amount_paid: number;
+  balance: number;
+  payment_status: PaymentStatus;
 }
 
 export interface Expense {
@@ -178,6 +188,18 @@ export interface WalletTransaction {
   balance_after: number | null;
   reason: string | null;
   created_by: string;
+  created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  payment_code: string;
+  sale_id: string | null;
+  customer_id: string | null;
+  amount: number;
+  payment_method: PaymentMethod;
+  payment_date: string;
+  notes: string | null;
   created_at: string;
 }
 
@@ -225,6 +247,15 @@ export interface SaleWithRelations extends Sale {
   batch?: Pick<InventoryBatch, 'id' | 'batch_code' | 'batch_name'>;
 }
 
+export interface PaymentWithRelations extends Payment {
+  sale?: {
+    id: string;
+    sale_code: string;
+    total_sale: number;
+  } | null;
+  customer?: Pick<Customer, 'id' | 'customer_name'> | null;
+}
+
 export interface ExpenseWithBatch extends Expense {
   batch?: Pick<InventoryBatch, 'id' | 'batch_code' | 'batch_name'> | null;
 }
@@ -234,12 +265,6 @@ export interface WalletBalance {
   balance: number;
   income: number;
   outflow: number;
-}
-
-export interface WalletBalance {
-  health: BatchHealth;
-  score: number;
-  reasons: string[];
 }
 
 export interface CustomerStats {

@@ -15,6 +15,7 @@ import {
 } from '../../hooks/queries';
 import {
   walletBalances, businessCash, expenseTotal, expensesByCategory,
+  realizedProfit, unrealizedProfit, availableProfit,
 } from '../../services/calculations';
 import { formatMoney, formatMoneyCompact, formatPercent } from '../../utils/format';
 import { Card, EmptyState, LoadingState, SectionHeader } from '../../components/common/Card';
@@ -162,7 +163,7 @@ interface ReportContentProps {
 
 function ReportContent({ type, currencySymbol, charts, batches, products, sales, expenses, walletTx, suppliers, customers }: ReportContentProps) {
   if (type === 'business') return <BusinessReport charts={charts} currencySymbol={currencySymbol} batches={batches} sales={sales} expenses={expenses} />;
-  if (type === 'financial') return <FinancialReport currencySymbol={currencySymbol} sales={sales} expenses={expenses} walletTx={walletTx} />;
+  if (type === 'financial') return <FinancialReport currencySymbol={currencySymbol} sales={sales} expenses={expenses} walletTx={walletTx} batches={batches} products={products} />;
   if (type === 'batch') return <BatchReport charts={charts} currencySymbol={currencySymbol} batches={batches} />;
   if (type === 'product') return <ProductReport currencySymbol={currencySymbol} products={products} sales={sales} />;
   if (type === 'supplier') return <SupplierReport currencySymbol={currencySymbol} batches={batches} suppliers={suppliers} />;
@@ -222,7 +223,7 @@ function BusinessReport({ charts, currencySymbol, batches, sales, expenses }: { 
   );
 }
 
-function FinancialReport({ currencySymbol, sales, expenses, walletTx }: { currencySymbol: string; sales: SaleWithRelations[]; expenses: ExpenseWithBatch[]; walletTx: WalletTransaction[] }) {
+function FinancialReport({ currencySymbol, batches, products, sales, expenses, walletTx }: { currencySymbol: string; batches: InventoryBatch[]; products: Product[]; sales: SaleWithRelations[]; expenses: ExpenseWithBatch[]; walletTx: WalletTransaction[] }) {
   const totalRevenue = sales.reduce((s: number, x: SaleWithRelations) => s + x.total_sale, 0);
   const totalCogs = sales.reduce((s: number, x: SaleWithRelations) => s + x.total_cost, 0);
   const grossProfit = totalRevenue - totalCogs;
@@ -231,10 +232,20 @@ function FinancialReport({ currencySymbol, sales, expenses, walletTx }: { curren
   const netProfit = grossProfit - batchExpenses;
   const wallets = walletBalances(walletTx);
   const cash = businessCash(wallets);
+  const realized = realizedProfit(batches);
+  const unrealized = unrealizedProfit(products);
+  const allocated = (walletTx ?? [])
+    .filter((t) => t.transaction_type === 'Allocation')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const available = availableProfit(realized, walletTx);
 
   return (
     <div className="space-y-4">
       <KpiGrid items={[
+        { label: 'Realized Profit', value: formatMoneyCompact(realized, currencySymbol) },
+        { label: 'Unrealized Profit', value: formatMoneyCompact(unrealized, currencySymbol) },
+        { label: 'Allocated Profit', value: formatMoneyCompact(allocated, currencySymbol), color: 'text-success' },
+        { label: 'Available Profit', value: formatMoneyCompact(available, currencySymbol) },
         { label: 'Gross revenue', value: formatMoneyCompact(totalRevenue, currencySymbol) },
         { label: 'Gross profit', value: formatMoneyCompact(grossProfit, currencySymbol), color: 'text-success' },
         { label: 'Net profit', value: formatMoneyCompact(netProfit, currencySymbol), color: netProfit >= 0 ? 'text-success' : 'text-danger' },
@@ -249,6 +260,15 @@ function FinancialReport({ currencySymbol, sales, expenses, walletTx }: { curren
           <FlowRow label="Batch expenses" value={`-${formatMoney(batchExpenses, currencySymbol)}`} valueClass="text-danger" />
           <FlowRow label="Net batch profit" value={formatMoney(netProfit, currencySymbol)} bold />
           <FlowRow label="Business expenses" value={`-${formatMoney(businessExpenses, currencySymbol)}`} valueClass="text-danger" />
+        </div>
+      </Card>
+      <Card padding="md">
+        <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Profit realization</p>
+        <div className="space-y-2 text-sm">
+          <FlowRow label="Realized profit" value={formatMoney(realized, currencySymbol)} />
+          <FlowRow label="Unrealized profit" value={formatMoney(unrealized, currencySymbol)} />
+          <FlowRow label="Allocated profit" value={`-${formatMoney(allocated, currencySymbol)}`} valueClass="text-danger" />
+          <FlowRow label="Available for reinvestment" value={formatMoney(available, currencySymbol)} bold />
         </div>
       </Card>
     </div>
@@ -469,6 +489,22 @@ function ExpenseReport({ charts, currencySymbol, expenses }: { charts: ReturnTyp
 
 function WalletReport({ currencySymbol, walletTx }: { currencySymbol: string; walletTx: WalletTransaction[] }) {
   const wallets = walletBalances(walletTx);
+  const allocations = (walletTx ?? [])
+    .filter((t) => t.transaction_type === 'Allocation')
+    .reduce(
+      (acc, t) => {
+        const wallet = t.wallet;
+        if (!acc[wallet]) acc[wallet] = 0;
+        acc[wallet] += Number(t.amount || 0);
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+  const allocationRows = wallets.map((w) => ({
+    wallet: w.wallet,
+    amount: allocations[w.wallet] || 0,
+  }));
+
   return (
     <div className="space-y-4">
       <KpiGrid items={wallets.map((w: WalletBalance) => ({
@@ -489,6 +525,9 @@ function WalletReport({ currencySymbol, walletTx }: { currencySymbol: string; wa
                 <span className="text-success">+{formatMoney(w.income, currencySymbol)} in</span>
                 <span className="text-danger">-{formatMoney(w.outflow, currencySymbol)} out</span>
               </div>
+              <p className="text-xs text-text-muted mt-1">
+                Allocated: {formatMoney(allocationRows.find((r) => r.wallet === w.wallet)?.amount || 0, currencySymbol)}
+              </p>
             </div>
           ))}
         </div>

@@ -84,10 +84,12 @@ interface EmptyStateProps {
   icon?: ReactNode;
   title: string;
   description?: string;
+  hint?: string;
   action?: ReactNode;
+  secondaryAction?: ReactNode;
 }
 
-export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, hint, action, secondaryAction }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-fade-in">
       <div className="w-14 h-14 rounded-2xl bg-surface-alt flex items-center justify-center text-text-muted mb-4">
@@ -95,7 +97,9 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
       </div>
       <h3 className="font-display font-bold text-text-primary text-base">{title}</h3>
       {description && <p className="text-sm text-text-muted mt-1 max-w-xs">{description}</p>}
+      {hint && <p className="text-xs text-text-muted/80 mt-1 max-w-xs">{hint}</p>}
       {action && <div className="mt-4">{action}</div>}
+      {secondaryAction && <div className="mt-3">{secondaryAction}</div>}
     </div>
   );
 }

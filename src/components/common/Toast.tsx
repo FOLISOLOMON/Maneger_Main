@@ -8,14 +8,21 @@ import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
 
+interface ToastAction {
+  label: string;
+  onUndo: () => void;
+}
+
 interface Toast {
   id: string;
   type: ToastType;
   message: string;
+  duration?: number;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  toast: (message: string, type?: ToastType) => void;
+  toast: (message: string, type?: ToastType, options?: { duration?: number; action?: ToastAction }) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -33,9 +40,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((message: string, type: ToastType = 'success') => {
+  const toast = useCallback((message: string, type: ToastType = 'success', options?: { duration?: number; action?: ToastAction }) => {
     const id = Math.random().toString(36).slice(2);
-    setToasts((prev) => [...prev, { id, type, message }]);
+    setToasts((prev) => [...prev, { id, type, message, duration: options?.duration, action: options?.action }]);
   }, []);
 
   return (
@@ -51,10 +58,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
+  const { action } = toast;
+  const duration = toast.duration ?? 4000;
+
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
+    if (!action) {
+      const timer = setTimeout(onClose, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [action, duration, onClose]);
+
+  const handleUndo = () => {
+    action?.onUndo();
+    onClose();
+  };
 
   const styles: Record<ToastType, string> = {
     success: 'bg-success',
@@ -70,6 +87,14 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
     >
       <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
       <p className="text-sm font-medium flex-1 leading-snug">{toast.message}</p>
+      {action && (
+        <button
+          onClick={handleUndo}
+          className="flex-shrink-0 text-xs font-bold bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-lg transition-colors"
+        >
+          {action.label}
+        </button>
+      )}
       <button onClick={onClose} className="flex-shrink-0 opacity-80 hover:opacity-100" aria-label="Close">
         <X className="w-4 h-4" />
       </button>
