@@ -110,7 +110,7 @@ export function Dashboard() {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard
           icon={ShoppingBag}
           label="Today's Sales"
@@ -218,7 +218,7 @@ export function Dashboard() {
       {/* Wallet cards */}
       <div>
         <SectionHeader title="Wallets" subtitle="Net profit allocations" action={<Link to="/wallets" className="text-xs font-semibold text-accent hover:underline">View all</Link>} />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {kpis.wallets.map((w) => {
             const meta = WALLET_META[w.wallet];
             return (
