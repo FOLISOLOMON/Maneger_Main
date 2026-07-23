@@ -89,11 +89,11 @@ export function BatchDetail() {
       </Link>
 
       {/* Header card */}
-      <Card padding="lg" className="bg-action text-white border-0">
+      <Card padding="lg" className="bg-action border-0">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="font-display font-extrabold text-xl tracking-tight truncate">{batch.batch_name}</h1>
+              <h1 className="font-display font-extrabold text-xl tracking-tight truncate text-white">{batch.batch_name}</h1>
               <span className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold', meta.color)}>
                 <span className={clsx('w-1.5 h-1.5 rounded-full', meta.dot)} />
                 {meta.label}
@@ -106,16 +106,16 @@ export function BatchDetail() {
           {health && (
             <div className="text-right flex-shrink-0">
               <p className="text-[11px] uppercase tracking-wide text-text-muted font-semibold">Health</p>
-              <p className="text-lg font-display font-bold">{health.health}</p>
+              <p className="text-lg font-display font-bold text-white">{health.health}</p>
             </div>
           )}
         </div>
 
         <div className="grid grid-cols-4 gap-3 mt-5">
-          <HeaderStat label="Revenue" value={formatMoneyCompact(batch.gross_revenue, currencySymbol)} />
+          <HeaderStat label="Revenue" value={formatMoneyCompact(batch.gross_revenue, currencySymbol)} valueClass="text-text-primary" />
           <HeaderStat label="Net Profit" value={formatMoneyCompact(batch.net_profit, currencySymbol)} valueClass={batch.net_profit >= 0 ? 'text-success' : 'text-danger'} />
-          <HeaderStat label="ROI" value={formatPercent(batch.roi)} />
-          <HeaderStat label="Stock" value={`${batch.remaining_stock}`} />
+          <HeaderStat label="ROI" value={formatPercent(batch.roi)} valueClass="text-text-primary" />
+          <HeaderStat label="Stock" value={`${batch.remaining_stock}`} valueClass="text-text-primary" />
         </div>
 
         <div className="mt-4">
@@ -175,7 +175,7 @@ export function BatchDetail() {
       {/* Tab content */}
       {tab === 'overview' && (
         <div className="space-y-3 animate-fade-in">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card padding="md">
               <p className="text-xs text-text-muted font-semibold uppercase tracking-wide">Total batch cost</p>
               <p className="text-xl font-display font-bold text-text-primary mt-1 tabular-nums">{formatMoney(batch.total_batch_cost, currencySymbol)}</p>
@@ -463,7 +463,7 @@ export function BatchDetail() {
   );
 }
 
-function HeaderStat({ label, value, valueClass = 'text-white' }: { label: string; value: string; valueClass?: string }) {
+function HeaderStat({ label, value, valueClass = 'text-text-primary' }: { label: string; value: string; valueClass?: string }) {
   return (
     <div>
       <p className={clsx('text-lg font-display font-bold tabular-nums', valueClass)}>{value}</p>
