@@ -139,7 +139,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {fab && (
         <button
           onClick={fab.onClick}
-          className="fixed right-4 bottom-20 md:bottom-6 z-40 h-14 pl-4 pr-5 rounded-2xl bg-action text-white shadow-fab hover:bg-action-light active:scale-95 transition-all flex items-center gap-2 font-semibold"
+          className="fixed right-4 bottom-20 md:bottom-6 z-40 h-14 px-5 rounded-2xl bg-action text-white shadow-fab hover:bg-action-light active:scale-95 transition-all flex items-center justify-center gap-2 font-semibold"
           aria-label={fab.label}
         >
           {fab.icon ? <fab.icon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}

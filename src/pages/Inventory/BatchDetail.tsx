@@ -91,9 +91,9 @@ export function BatchDetail() {
       {/* Header card */}
       <Card padding="lg" className="bg-action border-0">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+            <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="font-display font-extrabold text-xl tracking-tight truncate text-white">{batch.batch_name}</h1>
+              <h1 className="font-display font-extrabold text-xl tracking-tight truncate">{batch.batch_name}</h1>
               <span className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold', meta.color)}>
                 <span className={clsx('w-1.5 h-1.5 rounded-full', meta.dot)} />
                 {meta.label}
@@ -106,12 +106,12 @@ export function BatchDetail() {
           {health && (
             <div className="text-right flex-shrink-0">
               <p className="text-[11px] uppercase tracking-wide text-text-muted font-semibold">Health</p>
-              <p className="text-lg font-display font-bold text-white">{health.health}</p>
+              <p className="text-lg font-display font-bold text-text-muted">{health.health}</p>
             </div>
           )}
         </div>
 
-        <div className="grid grid-cols-4 gap-3 mt-5">
+        <div className="grid grid-cols-4 gap-3 mt-5 items-center">
           <HeaderStat label="Revenue" value={formatMoneyCompact(batch.gross_revenue, currencySymbol)} valueClass="text-text-primary" />
           <HeaderStat label="Net Profit" value={formatMoneyCompact(batch.net_profit, currencySymbol)} valueClass={batch.net_profit >= 0 ? 'text-success' : 'text-danger'} />
           <HeaderStat label="ROI" value={formatPercent(batch.roi)} valueClass="text-text-primary" />
@@ -465,9 +465,9 @@ export function BatchDetail() {
 
 function HeaderStat({ label, value, valueClass = 'text-text-primary' }: { label: string; value: string; valueClass?: string }) {
   return (
-    <div>
-      <p className={clsx('text-lg font-display font-bold tabular-nums', valueClass)}>{value}</p>
-      <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">{label}</p>
+    <div className="flex flex-col items-center text-center">
+      <p className={clsx('text-base md:text-lg font-display font-bold tabular-nums leading-tight', valueClass)}>{value}</p>
+      <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide mt-0.5 leading-tight">{label}</p>
     </div>
   );
 }

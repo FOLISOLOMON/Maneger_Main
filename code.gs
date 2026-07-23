@@ -743,8 +743,6 @@ function totalBatchCost(payload) {
 // ============================================================
 // FILTERED READ HELPERS
 // ============================================================
-
-function getRecordsByBatch(sheetName, batchId) {
   var all = getRecords(sheetName);
   return all.filter(function (r) {
     return String(r.batch_id || '') === String(batchId || '');
